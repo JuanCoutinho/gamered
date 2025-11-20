@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOONLIT RUINS - Hack n' Slash</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: 'Black Ops One', cursive;
+            user-select: none;
+        }
+
+        /* UI OVERLAY */
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* HUD */
+        #hud-top {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bar-container {
+            width: 350px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 4px solid #fff;
+            transform: skewX(-20deg);
+            overflow: hidden;
+            box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.1s;
+        }
+
+        #hp-fill {
+            background: #e74c3c;
+        }
+
+        #mana-fill {
+            background: #3498db;
+        }
+
+        #stats {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            text-align: right;
+            color: #fff;
+            text-shadow: 4px 4px 0 #000;
+            transform: skewX(-10deg);
+        }
+
+        #wave-display {
+            font-size: 48px;
+            color: #f1c40f;
+        }
+
+        #kill-display {
+            font-size: 28px;
+            color: #95a5a6;
+        }
+
+        /* CROSSHAIR */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+
+        #crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: #f1c40f;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #f1c40f;
+        }
+
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            transform: rotate(45deg);
+        }
+
+        /* FLOATING TEXT */
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 0.8s cubic-bezier(0.1, 0.7, 1.0, 0.1) forwards;
+            text-shadow: 3px 3px 0 #000;
+            font-size: 32px;
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translate(-50%, 0) scale(0.5);
+                opacity: 0;
+            }
+
+            20% {
+                transform: translate(-50%, -20px) scale(1.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -100px) scale(1.0);
+                opacity: 0;
+            }
+        }
+
+        /* START SCREEN */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #2c3e50, #000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            pointer-events: auto;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 100px;
+            margin-bottom: 0;
+            text-shadow: 10px 10px 0 #c0392b;
+            letter-spacing: 10px;
+            transform: skewX(-10deg);
+        }
+
+        p {
+            color: #bdc3c7;
+            font-size: 24px;
+            margin-bottom: 60px;
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            padding: 20px 80px;
+            font-size: 40px;
+            font-family: inherit;
+            color: #000;
+            background: #f1c40f;
+            border: none;
+            transform: skewX(-20deg);
+            cursor: pointer;
+            transition: 0.1s;
+            box-shadow: 10px 10px 0 #fff;
+        }
+
+        .btn:hover {
+            transform: skewX(-20deg) translate(-5px, -5px);
+            box-shadow: 15px 15px 0 #fff;
+        }
+
+        .btn:active {
+            transform: skewX(-20deg) translate(5px, 5px);
+            box-shadow: 0 0 0 #fff;
+        }
+
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: auto;
+            z-index: 150;
+        }
+
+        #game-over h2 {
+            font-size: 120px;
+            color: #e74c3c;
+            text-shadow: 5px 5px 0 #fff;
+            margin: 0;
+        }
+
+        /* LEVEL UP SCREEN */
+        #levelup-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .levelup-title {
+            font-size: 80px;
+            color: #f1c40f;
+            text-shadow: 5px 5px 0 #e74c3c, 10px 10px 20px #000;
+            margin: 0;
+            animation: pulse 1s infinite;
+        }
+
+        .levelup-subtitle {
+            font-size: 28px;
+            color: #bdc3c7;
+            margin: 20px 0 60px 0;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .upgrade-options {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+        }
+
+        .upgrade-card {
+            width: 280px;
+            padding: 30px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border: 5px solid #f1c40f;
+            transform: skewX(-5deg);
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 10px 10px 0 rgba(241, 196, 15, 0.5);
+        }
+
+        .upgrade-card:hover {
+            transform: skewX(-5deg) translateY(-10px);
+            box-shadow: 15px 15px 0 rgba(241, 196, 15, 0.8);
+            border-color: #fff;
+        }
+
+        .upgrade-icon {
+            font-size: 80px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .upgrade-name {
+            font-size: 24px;
+            color: #f1c40f;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .upgrade-desc {
+            font-size: 16px;
+            color: #ecf0f1;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+    <div id="ui">
+        <div id="hud-top">
+            <div class="bar-container">
+                <div id="hp-fill" class="bar-fill"></div>
+            </div>
+            <div class="bar-container" style="width: 200px; height: 16px;">
+                <div id="mana-fill" class="bar-fill"></div>
+            </div>
+            <div class="bar-container" style="width: 300px; height: 20px; border-color: #f1c40f;">
+                <div id="xp-fill" class="bar-fill" style="background: linear-gradient(90deg, #f1c40f, #f39c12);"></div>
+            </div>
+            <div
+                style="color: #fff; font-size: 18px; text-shadow: 3px 3px 0 #000; transform: skewX(-10deg); margin-top: 5px;">
+                LEVEL <span id="level-text">1</span>
+            </div>
+        </div>
+
+        <div id="stats">
+            <div id="wave-display">WAVE 1</div>
+            <div id="kill-display">KILLS: 0</div>
+            <div id="boss-hp-bar"
+                style="display: none; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); width: 400px; height: 20px; border: 2px solid #e74c3c;">
+                <div id="boss-fill" class="bar-fill" style="background: #e74c3c; width: 100%;"></div>
+                <div id="boss-label"
+                    style="position: absolute; width: 100%; text-align: center; color: #fff; font-weight: bold; text-shadow: 1px 1px 0 #000;">
+                    BOSS HP</div>
+            </div>
+        </div>
+
+        <div id="crosshair"></div>
+
+        <div id="game-over">
+            <h2>DEFEAT</h2>
+            <button class="btn" onclick="location.reload()">RETRY</button>
+        </div>
+    </div>
+
+    <!-- LEVEL UP SCREEN -->
+    <div id="levelup-screen">
+        <h2 class="levelup-title">⚡ LEVEL UP! ⚡</h2>
+        <p class="levelup-subtitle">Choose Your Power</p>
+        <div class="upgrade-options">
+            <div class="upgrade-card" id="upgrade-0" onclick="game.selectUpgrade(0)">
+                <div class="upgrade-icon">🔥</div>
+                <div class="upgrade-name"></div>
+                <div class="upgrade-desc"></div>
+            </div>
+            <div class="upgrade-card" id="upgrade-1" onclick="game.selectUpgrade(1)">
+                <div class="upgrade-icon">❄️</div>
+                <div class="upgrade-name"></div>
+                <div class="upgrade-desc"></div>
+            </div>
+            <div class="upgrade-card" id="upgrade-2" onclick="game.selectUpgrade(2)">
+                <div class="upgrade-icon">⚡</div>
+                <div class="upgrade-name"></div>
+                <div class="upgrade-desc"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>MOONLIT RUINS</h1>
+        <p>WASD: MOVE • CLICK: ATTACK • SPACE: DASH<br>1: FIRE • 2: ICE • 3: LIGHTNING</p>
+        <button class="btn" id="start-btn">ENGAGE</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- CONFIG ---
+        const C = {
+            PLAYER_SPEED: 8,
+            DASH_FORCE: 50,
+            DASH_COOLDOWN: 1.2,
+            GRAVITY: 50,
+            MAP_SIZE: 120,
+            MANA_REGEN: 20,
+            DASH_COST: 20,
+            SMASH_DAMAGE: 80,
+            SMASH_RADIUS: 6,
+            CAMERA_OFFSET: new THREE.Vector3(0, 7, 9)
+        };
+
+        // --- ASSETS ---
+        class Assets {
+            static createGridTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024; canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+                // Dark stone base
+                ctx.fillStyle = '#3a3555';
+                ctx.fillRect(0, 0, 1024, 1024);
+
+                // Cracks and moss
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 1024;
+                    ctx.strokeStyle = Math.random() > 0.7 ? '#2a4a2e' : '#2a2540';
+                    ctx.lineWidth = 2 + Math.random() * 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + Math.random() * 100 - 50, y + Math.random() * 100 - 50);
+                    ctx.stroke();
+                }
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(20, 20);
+                tex.anisotropy = 16;
+                return tex;
+            }
+
+            static createSmearTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                const grad = ctx.createLinearGradient(0, 0, 0, 512);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+                grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 128, 512);
+                return new THREE.CanvasTexture(canvas);
+            }
+        }
+
+        // --- AUDIO ---
+        class SoundManager {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.master = this.ctx.createGain();
+                this.master.gain.value = 0.3;
+                this.master.connect(this.ctx.destination);
+                this.enabled = false;
+            }
+            enable() { if (this.ctx.state === 'suspended') this.ctx.resume(); this.enabled = true; }
+
+            playTone(freq, type, dur, vol = 0.5, slide = 0) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slide) osc.frequency.linearRampToValueAtTime(freq + slide, this.ctx.currentTime + dur);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+                osc.connect(gain); gain.connect(this.master);
+                osc.start(); osc.stop(this.ctx.currentTime + dur);
+            }
+
+            smash() {
+                this.playTone(100, 'sawtooth', 0.3, 0.6, -50);
+                this.playTone(50, 'square', 0.4, 0.6, -20); // Bass
+            }
+            windup() { this.playTone(300, 'sine', 0.2, 0.3, 200); }
+            dash() { this.playTone(600, 'triangle', 0.2, 0.3, -400); }
+            hit() { this.playTone(200, 'sawtooth', 0.1, 0.5, -100); }
+            roar() { this.playTone(80, 'sawtooth', 1.0, 0.6, -20); }
+        }
+
+        // --- AUDIO MANAGER ---
+        class AudioManager {
+            constructor() {
+                this.bgm = new Audio();
+                this.bgm.loop = true;
+                this.bgm.volume = 0.4;
+                this.isMuted = false;
+            }
+
+            playBGM(url) {
+                if (this.bgm.src !== url) {
+                    this.bgm.src = url;
+                    this.bgm.play().catch(e => console.log("Interaja para tocar áudio"));
+                }
+            }
+
+            stopBGM() {
+                this.bgm.pause();
+                this.bgm.currentTime = 0;
+            }
+        }
+
+        // --- GAME ---
+        class Game {
+            constructor() {
+                this.assets = new AssetManager();
+                this.audioManager = new AudioManager();
+
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a0f2e); // Dark purple night
+                this.scene.fog = new THREE.Fog(0x2a1a3e, 30, 100);
+
+                // CAMERA
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.body.appendChild(this.renderer.domElement);
+
+                // LIGHTING - Moonlight theme
+                const ambi = new THREE.AmbientLight(0x9980cc, 0.3);
+                this.scene.add(ambi);
+
+                const moonLight = new THREE.DirectionalLight(0xc8b4ff, 1.2);
+                moonLight.position.set(40, 80, 40);
+                moonLight.castShadow = true;
+                moonLight.shadow.camera.top = 50;
+                moonLight.shadow.camera.bottom = -50;
+                moonLight.shadow.camera.left = -50;
+                moonLight.shadow.camera.right = 50;
+                moonLight.shadow.mapSize.width = 1024;
+                moonLight.shadow.mapSize.height = 1024;
+                this.scene.add(moonLight);
+
+                // Object Pools
+                this.particlePool = new ObjectPool(() => {
+                    const mesh = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.2, 0.2, 0.2),
+                        new THREE.MeshBasicMaterial({ color: 0xffffff })
+                    );
+                    mesh.visible = false;
+                    this.scene.add(mesh);
+                    return { mesh, lifetime: 0, velocity: new THREE.Vector3() };
+                }, 200);
+
+                this.textPool = new ObjectPool(() => {
+                    const div = document.createElement('div');
+                    div.className = 'floating-text';
+                    div.style.display = 'none';
+                    document.body.appendChild(div);
+                    return { element: div, lifetime: 0, position: new THREE.Vector3() };
+                }, 50);
+
+                // Background particles array
+                this.bgParticles = [];
+
+                // Systems
+                this.audio = new SoundManager();
+                this.clock = new THREE.Clock();
+                this.raycaster = new THREE.Raycaster();
+
+                // Game State
+                this.keys = {};
+                this.mouseDown = false;
+                this.entities = [];
+                this.particles = [];
+                this.xpOrbs = []; // XP orbs to collect
+                this.chests = [];
+                this.potions = [];
+                this.projectiles = []; // Spell projectiles
+                this.lightningStrikes = []; // Lightning spell effects
+
+                // Initial Chests
+                for (let i = 0; i < 10; i++) {
+                    const x = (Math.random() - 0.5) * C.MAP_SIZE * 0.8;
+                    const z = (Math.random() - 0.5) * C.MAP_SIZE * 0.8;
+                    this.chests.push(new Chest(this, x, z));
+                }
+                this.state = 'START';
+                this.wave = 1;
+                this.waveTimer = 0;
+                this.kills = 0;
+                this.bossSpawnedThisWave = false; // Track boss spawn
+                this.screenShake = 0;
+                this.hitStop = 0;
+
+                this.initWorld();
+                this.initPlayer();
+
+                // Controls
+                this.controls = new PointerLockControls(this.cameraRig, document.body); // Using rig for controls? No, separate
+
+                // Events
+                document.getElementById('start-btn').onclick = () => {
+                    this.audio.enable();
+                    this.controls.lock();
+                };
+                this.controls.addEventListener('lock', () => {
+                    document.getElementById('start-screen').style.display = 'none';
+                    this.state = 'PLAYING';
+                });
+                this.controls.addEventListener('unlock', () => {
+                    if (this.playerStats.hp > 0) this.state = 'PAUSED';
+                });
+
+                window.addEventListener('resize', () => this.resize());
+                document.addEventListener('keydown', e => {
+                    this.keys[e.code] = true;
+                    if (this.state === 'PLAYING') {
+                        if (e.code === 'Space') this.dash();
+                        // Spell casting
+                        if (e.code === 'Digit1') this.castSpell('fire');
+                        if (e.code === 'Digit2') this.castSpell('ice');
+                        if (e.code === 'Digit3') this.castSpell('lightning');
+                    }
+                });
+                document.addEventListener('keyup', e => this.keys[e.code] = false);
+                document.addEventListener('mousedown', (e) => {
+                    if (this.state === 'PLAYING') {
+                        if (e.button === 2) { // Right Click
+                            this.heavyAttack();
+                        } else {
+                            this.mouseDown = true;
+                            this.attack();
+                        }
+                    }
+                });
+                document.addEventListener('mouseup', () => {
+                    if (this.state === 'PLAYING') this.mouseDown = false;
+                });
+
+                this.animate();
+            }
+
+            resize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            initWorld() {
+                // Start BGM
+                // Placeholder URL - User should replace this
+                this.audioManager.playBGM('https://opengameart.org/sites/default/files/heroic_demise.mp3');
+
+                // Ground
+                const groundGeo = new THREE.PlaneGeometry(C.MAP_SIZE, C.MAP_SIZE);
+                groundGeo.rotateX(-Math.PI / 2);
+                const groundMat = new THREE.MeshStandardMaterial({ map: Assets.createGridTexture(), roughness: 0.9 });
+                this.ground = new THREE.Mesh(groundGeo, groundMat);
+                this.ground.receiveShadow = true;
+                this.scene.add(this.ground);
+
+                // Ancient Ruin Pillars (procedural)
+                const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4459, roughness: 0.9 });
+                for (let i = 0; i < 25; i++) {
+                    const x = (Math.random() - 0.5) * C.MAP_SIZE * 0.8;
+                    const z = (Math.random() - 0.5) * C.MAP_SIZE * 0.8;
+                    if (Math.hypot(x, z) < 10) continue;
+
+                    const height = 8 + Math.random() * 6;
+                    const pillarGeo = new THREE.BoxGeometry(1.5 + Math.random(), height, 1.5 + Math.random());
+                    const mesh = new THREE.Mesh(pillarGeo, pillarMat);
+                    mesh.position.set(x, height / 2, z);
+                    mesh.rotation.y = Math.random() * 0.3;
+                    mesh.castShadow = true;
+                    this.scene.add(mesh);
+                }
+
+                // Background magic particles
+                const particleGeo = new THREE.SphereGeometry(0.08, 4, 4);
+                const particleMat = new THREE.MeshBasicMaterial({ color: 0x9980ff, transparent: true, opacity: 0.4 });
+                for (let i = 0; i < 200; i++) {
+                    const p = new THREE.Mesh(particleGeo, particleMat.clone());
+                    p.position.set(
+                        (Math.random() - 0.5) * 150,
+                        Math.random() * 40 + 5,
+                        (Math.random() - 0.5) * 150
+                    );
+                    this.scene.add(p);
+                    this.bgParticles.push({
+                        mesh: p,
+                        speed: 0.5 + Math.random() * 1.5,
+                        offset: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            initPlayer() {
+                this.player = new THREE.Group();
+
+                // --- RIGID BODY RIG ---
+                const matArmor = new THREE.MeshStandardMaterial({ color: 0xecf0f1, roughness: 0.3, metalness: 0.5 });
+                const matSkin = new THREE.MeshStandardMaterial({ color: 0xffe0bd });
+
+                // Torso
+                this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.5), matArmor);
+                this.torso.position.y = 1.2;
+                this.torso.castShadow = true;
+                this.player.add(this.torso);
+
+                // Head
+                this.head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.6), matSkin);
+                this.head.position.y = 0.8;
+                this.torso.add(this.head);
+
+                // Arms
+                this.armL = new THREE.Group();
+                this.armL.position.set(-0.5, 0.3, 0);
+                this.torso.add(this.armL);
+                const armLMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), matArmor);
+                armLMesh.position.y = -0.3;
+                this.armL.add(armLMesh);
+
+                this.armR = new THREE.Group();
+                this.armR.position.set(0.5, 0.3, 0);
+                this.torso.add(this.armR);
+                const armRMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), matArmor);
+                armRMesh.position.y = -0.3;
+                this.armR.add(armRMesh);
+
+                // GREATSWORD
+                this.sword = new THREE.Group();
+                this.sword.position.set(0, -0.8, 0.5); // Held in hand
+                this.armR.add(this.sword);
+
+                // Blade
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.5, 0.1), new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 }));
+                blade.position.y = 1.5;
+                blade.castShadow = true;
+                this.sword.add(blade);
+
+                // Hilt
+                const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.2), new THREE.MeshStandardMaterial({ color: 0x2c3e50 }));
+                hilt.position.y = -0.2;
+                this.sword.add(hilt);
+
+                // Handle
+                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), new THREE.MeshStandardMaterial({ color: 0x8e44ad }));
+                handle.position.y = -0.6;
+                this.sword.add(handle);
+
+                // Smear Frame (Hidden by default)
+                const smearGeo = new THREE.PlaneGeometry(4, 4);
+                const smearMat = new THREE.MeshBasicMaterial({ map: Assets.createSmearTexture(), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+                this.smear = new THREE.Mesh(smearGeo, smearMat);
+                this.smear.position.set(0, 2, 0);
+                this.smear.rotation.y = Math.PI / 2;
+                this.player.add(this.smear); // Add to player to follow pos
+
+                // Legs
+                this.legL = new THREE.Group();
+                this.legL.position.set(-0.25, -0.5, 0);
+                this.torso.add(this.legL);
+                const legLMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, 0.35), matArmor);
+                legLMesh.position.y = -0.4;
+                this.legL.add(legLMesh);
+
+                this.legR = new THREE.Group();
+                this.legR.position.set(0.25, -0.5, 0);
+                this.torso.add(this.legR);
+                const legRMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, 0.35), matArmor);
+                legRMesh.position.y = -0.4;
+                this.legR.add(legRMesh);
+
+                this.scene.add(this.player);
+
+                // Camera Rig (Pivot)
+                this.cameraRig = new THREE.Object3D();
+                this.scene.add(this.cameraRig);
+                this.cameraRig.add(this.camera);
+                this.camera.position.copy(C.CAMERA_OFFSET);
+                this.camera.lookAt(0, 0, -10); // Look forward relative to rig
+
+                // Stats
+                this.playerStats = {
+                    hp: 100, maxHP: 100,
+                    mana: 100, maxMana: 100,
+                    xp: 0, xpToNextLevel: 100, level: 1,
+                    dashCd: 0,
+                    animState: 'IDLE', animTimer: 0,
+                    velocity: new THREE.Vector3(),
+                    invincibleTimer: 0,
+                    currentSpell: 'none',
+                    spells: ['fire', 'ice', 'lightning'], // Unlocked active spells
+                    passives: {}, // Unlocked passives
+                    spellLevels: { fire: 1, ice: 1, lightning: 1 },
+                    isSuperman: false
+                };
+
+                // Store blade reference for spell color change
+                this.bladeMesh = blade;
+            }
+
+            spawnEnemy(type, isBoss = false) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 40 + Math.random() * 20;
+                const x = this.player.position.x + Math.cos(angle) * dist;
+                const z = this.player.position.z + Math.sin(angle) * dist;
+
+                // Choose random enemy type
+                const types = ['goblin', 'skeleton', 'cultist', 'golem', 'wraith', 'knight'];
+                const enemyType = isBoss ? 'golem' : types[Math.floor(Math.random() * types.length)];
+
+                let hp, speed, scale, damageToPlayer;
+                const group = this.assets.getMesh(enemyType);
+
+                switch (enemyType) {
+                    case 'goblin': // Fast, small, green, with dagger
+                        hp = 60 + this.wave * 10;
+                        speed = 5 + Math.random();
+                        scale = 1.2;
+                        damageToPlayer = 15;
+                        break;
+
+                    case 'skeleton': // Skeleton guard with shield
+                        hp = 100 + this.wave * 15;
+                        speed = 2.5 + Math.random();
+                        scale = 1.6;
+                        damageToPlayer = 25;
+                        break;
+
+                    case 'cultist': // Dark cultist with hood, ranged
+                        hp = 80 + this.wave * 12;
+                        speed = 3.5 + Math.random();
+                        scale = 1.5;
+                        damageToPlayer = 20;
+                        break;
+
+                    case 'golem': // Stone golem, slow tank
+                        hp = isBoss ? 2000 + this.wave * 400 : 200 + this.wave * 30;
+                        speed = 1.5;
+                        scale = isBoss ? 5.0 : 2.5;
+                        damageToPlayer = isBoss ? 50 : 35;
+                        // Change golem core color for boss
+                        if (isBoss) {
+                            const coreMesh = group.children.find(c => c.material === this.assets.materials.golemCoreOrange);
+                            if (coreMesh) coreMesh.material = this.assets.materials.golemCoreRed;
+                        }
+                        break;
+
+                    case 'wraith': // Floating ghost, blue translucent
+                        hp = 80 + this.wave * 10;
+                        speed = 3.5 + Math.random();
+                        scale = 1.8;
+                        damageToPlayer = 18;
+                        break;
+
+                    case 'knight': // Corrupted knight, black/red armor
+                        hp = 250 + this.wave * 30;
+                        speed = 1.5 + Math.random();
+                        scale = 2.5;
+                        damageToPlayer = 40;
+                        break;
+                        break;
+                }
+
+                group.position.set(x, 0, z);
+                group.scale.multiplyScalar(scale);
+                group.castShadow = true;
+                group.traverse(child => { if (child.isMesh) child.castShadow = true; });
+
+                this.scene.add(group);
+
+                this.entities.push({
+                    type: enemyType,
+                    mesh: group,
+                    hp: hp,
+                    maxHp: hp,
+                    speed: speed,
+                    scale: scale,
+                    isBoss: isBoss,
+                    state: 'CHASE',
+                    timer: 0,
+                    damageToPlayer: damageToPlayer,
+                    canBlock: enemyType === 'skeleton', // Skeleton can block 1 hit
+                    velocity: new THREE.Vector3()
+                });
+            }
+
+            spawnParticles(pos, color, count = 1, speed = 1) {
+                for (let i = 0; i < count; i++) {
+                    const p = this.particlePool.get();
+                    p.mesh.position.copy(pos);
+                    p.mesh.material.color.setHex(color);
+                    p.mesh.visible = true;
+
+                    p.velocity.set(
+                        (Math.random() - 0.5) * speed,
+                        (Math.random() - 0.5) * speed + speed,
+                        (Math.random() - 0.5) * speed
+                    );
+                    p.lifetime = 1.0;
+                }
+            }
+
+            spawnHitParticles(pos, color, amount = 15) {
+                for (let i = 0; i < amount; i++) {
+                    const p = this.particlePool.get();
+                    p.mesh.position.copy(pos);
+                    p.mesh.material.color.setHex(color);
+                    p.mesh.visible = true;
+
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 4;
+                    const lift = Math.random() * 3;
+
+                    p.velocity.set(Math.cos(angle) * speed, lift, Math.sin(angle) * speed);
+
+                    const scale = 0.5 + Math.random() * 0.5;
+                    p.mesh.scale.set(scale, scale, scale);
+                    p.lifetime = 0.6;
+                }
+            }
+
+            triggerScreenShake(intensity) {
+                this.screenShake = Math.max(this.screenShake, intensity);
+            }
+
+            spawnFloatingText(pos, text, color) {
+                const t = this.textPool.get();
+                t.element.innerText = text;
+                t.element.style.color = color;
+                t.element.style.display = 'block';
+                t.element.style.left = '0px'; // Reset for transform
+                t.element.style.top = '0px';
+
+                t.position.copy(pos);
+                t.position.y += 2;
+                t.lifetime = 1.0;
+            }
+
+            castSpell(type) {
+                const p = this.playerStats;
+                const cost = 25;
+                if (p.mana < cost) return;
+
+                p.mana -= cost;
+                p.currentSpell = type;
+                p.spellDuration = 10; // 10 seconds
+
+                // Visual feedback
+                const colors = { fire: 0xff6b35, ice: 0x5dade2, lightning: 0xf4d03f };
+                this.bladeMesh.material.color.setHex(colors[type]);
+                if (this.bladeMesh.material.emissive) { // Check if emissive property exists
+                    this.bladeMesh.material.emissive.setHex(colors[type]);
+                    this.bladeMesh.material.emissiveIntensity = 0.5;
+                }
+
+                // VFX
+                for (let i = 0; i < 15; i++) {
+                    this.spawnParticles(this.player.position, colors[type], 1, 1.5);
+                }
+            }
+
+            dash() {
+                const p = this.playerStats;
+                if (p.dashCd > 0 || p.mana < C.DASH_COST) return;
+
+                p.mana -= C.DASH_COST;
+                p.dashCd = 0.5; // Reduced cooldown for snappier combat (was C.DASH_COOLDOWN)
+                p.invincibleTimer = 0.3; // Slightly shorter invincibility
+
+                const dir = new THREE.Vector3();
+                this.player.getWorldDirection(dir);
+                p.velocity.add(dir.multiplyScalar(C.DASH_FORCE * 2.5)); // Much faster dash (Teleport feel)
+                this.audio.dash();
+                this.screenShake = 0.3;
+
+                // Particles
+                for (let i = 0; i < 10; i++) {
+                    this.spawnParticles(this.player.position, 0x3498db, 1, 0.5);
+                }
+            }
+
+            attack() {
+                const p = this.playerStats;
+                if (p.animState !== 'IDLE' && p.animState !== 'RUN') return;
+
+                p.animState = 'WINDUP';
+                p.animTimer = 0.2; // Windup time
+                this.audio.windup();
+            }
+
+            heavyAttack() {
+                const p = this.playerStats;
+                if (p.animState !== 'IDLE' && p.animState !== 'RUN') return;
+
+                p.animState = 'WINDUP_HEAVY';
+                p.animTimer = 0.6; // Longer windup
+                this.audio.windup(); // TODO: Deeper sound?
+            }
+
+            performSmash(damageMult = 1.0, radiusMult = 1.0) {
+                const p = this.playerStats;
+                this.audio.smash();
+                this.triggerScreenShake(0.5); // Juice: Screen Shake
+
+                // Ground Effect
+                const dir = new THREE.Vector3();
+                this.player.getWorldDirection(dir);
+                const hitPos = this.player.position.clone().add(dir.multiplyScalar(3));
+
+                // Dust Particles
+                for (let i = 0; i < 20; i++) {
+                    this.spawnParticles(hitPos, 0x7f8c8d, 1, 2.0);
+                }
+
+                // Hitbox
+                let hitCount = 0;
+                const hitEnemies = [];
+                const smashRadiusSq = ((p.currentSpell === 'lightning' ? C.SMASH_RADIUS + 2 : C.SMASH_RADIUS) * radiusMult) ** 2;
+
+                this.entities.forEach(e => {
+                    if (!e.mesh.visible) return; // Skip culled
+
+                    const distSq = e.mesh.position.distanceToSquared(hitPos);
+                    const radiusSum = (e.scale || 1); // Simplified radius check
+
+                    // Optimized collision check
+                    if (distSq < (Math.sqrt(smashRadiusSq) + radiusSum) ** 2) {
+                        let damage = C.SMASH_DAMAGE * damageMult;
+
+                        // Apply spell effects
+                        if (p.currentSpell === 'fire') {
+                            damage *= 1.2;
+                            e.burning = { time: 3, dps: 15 }; // DoT effect
+                        } else if (p.currentSpell === 'ice') {
+                            e.frozen = 2; // 2 seconds slow
+                            e.speedMod = 0.3;
+                        } else if (p.currentSpell === 'lightning') {
+                            damage *= 0.8; // Slightly less damage but AoE
+                        } else if (p.currentSpell === 'wind') {
+                            // Massive Knockback
+                            const push = e.mesh.position.clone().sub(this.player.position).normalize();
+                            push.y = 0.8;
+                            e.knockback = push.multiplyScalar(25);
+                        } else if (p.currentSpell === 'plants') {
+                            e.frozen = 2; // Root
+                            e.speedMod = 0;
+                            this.spawnParticles(e.mesh.position, 0x2ecc71, 10, 1.0);
+                        } else if (p.currentSpell === 'plastic') {
+                            e.speedMod = 0.5;
+                            // Visual: Transparent film
+                            const film = new THREE.Mesh(
+                                new THREE.SphereGeometry(e.scale * 1.2, 8, 8),
+                                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, wireframe: true })
+                            );
+                            e.mesh.add(film);
+                            setTimeout(() => e.mesh.remove(film), 3000);
+                        }
+
+                        // Passives
+                        if (p.passives.poison) {
+                            e.poisoned = { time: 3, dps: 10 };
+                            e.mesh.traverse(c => { if (c.isMesh) c.material.color.setHex(0x2ecc71); });
+                        }
+                        if (p.passives.vampirism) {
+                            const heal = damage * 0.05;
+                            p.hp = Math.min(p.hp + heal, p.maxHP);
+                            if (Math.random() < 0.3) this.spawnFloatingText(this.player.position, `+${Math.floor(heal)}`, '#e74c3c');
+                        }
+
+                        e.hp -= damage;
+                        hitCount++;
+                        hitEnemies.push(e);
+
+                        this.spawnFloatingText(e.mesh.position, Math.floor(damage), "#fff");
+                        const color = p.currentSpell === 'fire' ? 0xff6b35 :
+                            p.currentSpell === 'ice' ? 0x5dade2 :
+                                p.currentSpell === 'lightning' ? 0xf4d03f :
+                                    (e.isBoss ? 0x9b59b6 : 0x2ecc71);
+                        this.spawnHitParticles(e.mesh.position, color, 20); // Juice: Hit Particles
+
+                        // Default Knockback (if not wind)
+                        if (p.currentSpell !== 'wind') {
+                            const knockDir = e.mesh.position.clone().sub(this.player.position).normalize();
+                            knockDir.y = 0.5;
+                            e.knockback = knockDir.multiplyScalar(10);
+                        }
+
+                        // Flash (works with Groups)
+                        e.mesh.traverse(child => {
+                            if (child.isMesh && child.material) {
+                                if (child.material.emissive) child.material.emissive.setHex(0xffffff);
+                                setTimeout(() => {
+                                    if (child.material && child.material.emissive) {
+                                        child.material.emissive.setHex(0x000000);
+                                    }
+                                }, 100);
+                            }
+                        });
+
+                        if (e.hp <= 0) {
+                            this.scene.remove(e.mesh);
+                            this.entities.splice(this.entities.indexOf(e), 1);
+                            this.kills++;
+                            document.getElementById('kill-display').innerText = 'KILLS: ' + this.kills;
+                            this.spawnParticles(e.mesh.position, 0xffffff, 30, 2.0);
+                            // Spawn XP orb
+                            const xpValue = e.isBoss ? 100 : 10;
+                            this.spawnXPOrb(e.mesh.position, xpValue);
+                        }
+                    }
+                });
+
+                // Hit Chests
+                this.chests.forEach(c => {
+                    if (c.mesh.position.distanceTo(hitPos) < C.SMASH_RADIUS + 1) {
+                        c.takeDamage();
+                        this.spawnParticles(c.mesh.position, 0x8e44ad, 5, 1.0);
+                    }
+                });
+
+                // Active Spell Effects (No Hit Required)
+                if (p.currentSpell === 'earth') {
+                    this.spawnEarthWall(hitPos);
+                } else if (p.currentSpell === 'gravity') {
+                    this.spawnBlackHole(hitPos);
+                } else if (p.currentSpell === 'wood') {
+                    this.spawnWoodenStake(hitPos, dir);
+                } else if (p.currentSpell === 'tech') {
+                    this.triggerGlitchStorm();
+                }
+
+                if (hitCount > 0) {
+                    this.hitStop = 0.1; // 100ms freeze
+                    this.audio.hit();
+
+                    // SPELL EVOLUTION EFFECTS
+                    if (hitCount > 0 && hitEnemies.length > 0) {
+                        const targetEnemy = hitEnemies[0];
+
+                        // Fire Level 2: Shoot projectile
+                        if (p.spellLevels.fire >= 2 && p.currentSpell === 'fire') {
+                            const dir = new THREE.Vector3();
+                            this.player.getWorldDirection(dir);
+                            this.spawnFireProjectile(this.player.position.clone(), dir);
+                        }
+
+                        // Lightning Level 2: Sky strike
+                        if (p.spellLevels.lightning >= 2 && p.currentSpell === 'lightning') {
+                            this.spawnLightningStrike(targetEnemy.mesh.position.clone());
+                        }
+                    }
+                }
+            }
+
+            spawnXPOrb(position, value = 10) {
+                const mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.4, 8, 8),
+                    new THREE.MeshBasicMaterial({
+                        color: 0x00ff00,
+                        emissive: 0x00ff00,
+                        emissiveIntensity: 0.8
+                    })
+                );
+                mesh.position.copy(position);
+                mesh.position.y = 1; // Float above ground
+                this.scene.add(mesh);
+
+                this.xpOrbs.push({
+                    mesh: mesh,
+                    value: value,
+                    lifetime: 30, // Despawn after 30s
+                    bobOffset: Math.random() * Math.PI * 2
+                });
+            }
+
+            spawnEarthWall(pos) {
+                const wall = new THREE.Mesh(
+                    new THREE.BoxGeometry(4, 3, 1),
+                    new THREE.MeshStandardMaterial({ color: 0x7f8c8d, roughness: 0.9 })
+                );
+                wall.position.copy(pos);
+                wall.position.y = 1.5;
+                this.scene.add(wall);
+                setTimeout(() => this.scene.remove(wall), 5000);
+            }
+
+            spawnBlackHole(pos) {
+                const hole = new THREE.Mesh(
+                    new THREE.SphereGeometry(1, 16, 16),
+                    new THREE.MeshBasicMaterial({ color: 0x000000 })
+                );
+                hole.position.copy(pos);
+                hole.position.y = 2;
+                this.scene.add(hole);
+
+                // Pull effect logic in update
+                this.projectiles.push({
+                    mesh: hole,
+                    type: 'gravity',
+                    lifetime: 4,
+                    radius: 15
+                });
+            }
+
+            spawnWoodenStake(pos, dir) {
+                const stake = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.2, 2, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+                );
+                stake.geometry.rotateX(-Math.PI / 2);
+                stake.position.copy(this.player.position);
+                stake.position.y = 1.5;
+                this.scene.add(stake);
+
+                this.projectiles.push({
+                    mesh: stake,
+                    direction: dir,
+                    speed: 40,
+                    damage: 100,
+                    lifetime: 3,
+                    type: 'wood'
+                });
+            }
+
+            triggerGlitchStorm() {
+                if (this.playerStats.mana < 50) return;
+                this.playerStats.mana -= 50;
+
+                // Visual Glitch
+                document.body.style.filter = 'invert(1) hue-rotate(90deg)';
+                setTimeout(() => document.body.style.filter = 'none', 200);
+
+                // Damage All
+                this.entities.forEach(e => {
+                    e.hp -= 200;
+                    this.spawnFloatingText(e.mesh.position, "101010", "#00ff00");
+                });
+            }
+
+            activateSupermanMode() {
+                const p = this.playerStats;
+                p.isSuperman = true;
+                p.maxHP *= 2;
+                p.hp = p.maxHP;
+
+                // Visual change
+                this.sword.visible = false;
+                this.player.position.y = 5; // Fly
+
+                // Reset after 20s
+                setTimeout(() => {
+                    p.isSuperman = false;
+                    p.maxHP /= 2;
+                    if (p.hp > p.maxHP) p.hp = p.maxHP;
+                    this.sword.visible = true;
+                    this.player.position.y = 0;
+                }, 20000);
+            }
+
+            spawnPotion(position, type) {
+                this.potions.push(new Potion(this, position, type));
+            }
+
+            spawnFireProjectile(origin, direction) {
+                // Create fireball mesh
+                const mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.5, 8, 8),
+                    new THREE.MeshBasicMaterial({
+                        color: 0xff6b35
+                    })
+                );
+                mesh.position.copy(origin);
+                mesh.position.y = 1.5;
+                this.scene.add(mesh);
+
+                this.projectiles.push({
+                    mesh: mesh,
+                    direction: direction.normalize(),
+                    speed: 25,
+                    damage: 60,
+                    lifetime: 5,
+                    type: 'fire'
+                });
+            }
+
+            spawnLightningStrike(targetPos) {
+                // Warning indicator
+                const warningGeo = new THREE.CylinderGeometry(3, 3, 0.1, 32);
+                const warningMat = new THREE.MeshBasicMaterial({
+                    color: 0xffff00,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const warning = new THREE.Mesh(warningGeo, warningMat);
+                warning.position.copy(targetPos);
+                warning.position.y = 0.05;
+                this.scene.add(warning);
+
+                this.lightningStrikes.push({
+                    warningMesh: warning,
+                    position: targetPos.clone(),
+                    delay: 0.5,
+                    damage: 100,
+                    radius: 4,
+                    state: 'warning'
+                });
+            }
+
+            update(dt) {
+                if (this.state !== 'PLAYING') return;
+
+                // Hit Stop
+                if (this.hitStop > 0) {
+                    this.hitStop -= dt;
+                    return;
+                }
+
+                const p = this.playerStats;
+                p.mana = Math.min(p.mana + C.MANA_REGEN * dt, p.maxMana);
+
+                // --- MOVEMENT & ROTATION ---
+                // Camera Rig follows player
+                this.cameraRig.position.lerp(this.player.position, 0.1);
+
+                // Raycast for aiming
+                const camDir = new THREE.Vector3();
+                this.camera.getWorldDirection(camDir);
+                camDir.y = 0; camDir.normalize();
+
+                // Controls relative to Camera
+                const moveForward = Number(this.keys['KeyW'] || 0) - Number(this.keys['KeyS'] || 0);
+                const moveRight = Number(this.keys['KeyD'] || 0) - Number(this.keys['KeyA'] || 0);
+
+                const rigRight = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0, 1, 0));
+                const moveVec = new THREE.Vector3().add(camDir.multiplyScalar(moveForward)).add(rigRight.multiplyScalar(moveRight));
+                if (moveVec.length() > 0) moveVec.normalize();
+
+                // Player Rotation: Always face camera direction (TPS Shooter style) or Move direction?
+                // Request said: "Player SEMPRE gira o corpo para alinhar com a mira"
+                // Aim point is center of screen projected to ground
+                const aimTarget = this.player.position.clone().add(camDir.multiplyScalar(10));
+                this.player.lookAt(aimTarget);
+
+                // Velocity
+                if (p.animState === 'IDLE' || p.animState === 'RUN') {
+                    if (moveVec.length() > 0) {
+                        p.velocity.x = moveVec.x * C.PLAYER_SPEED;
+                        p.velocity.z = moveVec.z * C.PLAYER_SPEED;
+                        if (p.animState !== 'RUN') p.animState = 'RUN';
+                    } else {
+                        p.velocity.x = 0;
+                        p.velocity.z = 0;
+                        if (p.animState !== 'IDLE') p.animState = 'IDLE';
+                    }
+                } else {
+                    // Slow down during attack
+                    p.velocity.x *= 0.9;
+                    p.velocity.z *= 0.9;
+                }
+
+                // Physics
+                p.velocity.y -= C.GRAVITY * dt;
+                this.player.position.add(p.velocity.clone().multiplyScalar(dt));
+                if (this.player.position.y < 0) {
+                    this.player.position.y = 0;
+                    p.velocity.y = 0;
+                }
+
+                // --- ANIMATION STATE MACHINE ---
+                const time = Date.now() * 0.01;
+
+                // Reset Poses
+                this.smear.material.opacity = 0;
+
+                if (p.animState === 'IDLE') {
+                    // Breathe
+                    this.torso.position.y = 1.2 + Math.sin(time * 0.5) * 0.02;
+                    this.torso.rotation.x = 0;
+                    this.torso.rotation.y = 0;
+                    this.armR.rotation.set(0, 0, 0);
+                    this.armL.rotation.set(0, 0, 0);
+                    this.sword.rotation.set(0, 0, 0);
+                    this.sword.position.set(0, -0.8, 0.5);
+                    // Legs Wide
+                    this.legL.rotation.x = 0; this.legL.position.z = 0.2;
+                    this.legR.rotation.x = 0; this.legR.position.z = -0.2;
+
+                } else if (p.animState === 'RUN') {
+                    // Run Cycle
+                    this.torso.rotation.x = 0.2; // Lean forward
+                    this.legL.rotation.x = Math.sin(time) * 0.8;
+                    this.legR.rotation.x = Math.cos(time) * 0.8;
+                    this.armL.rotation.x = Math.cos(time) * 0.8;
+                    this.armR.rotation.x = Math.sin(time) * 0.8;
+                    this.sword.rotation.set(Math.PI / 4, 0, 0); // Hold sword back
+
+                } else if (p.animState === 'WINDUP') {
+                    p.animTimer -= dt;
+                    // Raise Sword High
+                    this.torso.rotation.y = 0.5; // Twist right
+                    this.armR.rotation.set(0, 0, Math.PI - 0.5); // Arm up
+                    this.sword.rotation.set(0, 0, 0);
+
+                    if (p.animTimer <= 0) {
+                        p.animState = 'SMASH';
+                        p.animTimer = 0.1; // Fast smash
+                        this.performSmash(1.0, 1.0);
+                    }
+
+                } else if (p.animState === 'WINDUP_HEAVY') {
+                    p.animTimer -= dt;
+                    // Raise Sword Higher and Slower
+                    this.torso.rotation.y = 0.8; // Twist more
+                    this.armR.rotation.set(0, 0, Math.PI - 0.2); // Arm way up
+                    this.sword.rotation.set(0, 0, -0.5); // Angled back
+
+                    if (p.animTimer <= 0) {
+                        p.animState = 'SMASH_HEAVY';
+                        p.animTimer = 0.2; // Heavy smash impact time
+                        this.performSmash(2.5, 1.5); // 2.5x Damage, 1.5x Radius
+                        this.screenShake = 2.0; // Massive shake
+                    }
+
+                } else if (p.animState === 'SMASH') {
+                    p.animTimer -= dt;
+                    // SMASH DOWN
+                    this.torso.rotation.y = -0.5; // Twist left
+                    this.torso.rotation.x = 0.5; // Lean into it
+                    this.armR.rotation.set(1.5, 0, -0.5); // Arm forward/down
+                    this.sword.rotation.set(1.5, 0, 0); // Sword flat
+
+                    // Smear Frame
+                    this.smear.material.opacity = 1.0;
+                    this.smear.rotation.z = Math.random();
+
+                    if (p.animTimer <= 0) p.animState = 'IDLE';
+
+                } else if (p.animState === 'SMASH_HEAVY') {
+                    p.animTimer -= dt;
+                    // SMASH DOWN HARD
+                    this.torso.rotation.y = -0.8;
+                    this.torso.rotation.x = 0.8;
+                    this.armR.rotation.set(1.8, 0, -0.5);
+                    this.sword.rotation.set(1.8, 0, 0);
+
+                    this.smear.material.opacity = 1.0;
+                    this.smear.scale.set(2, 2, 2); // Bigger smear
+
+                    if (p.animTimer <= 0) {
+                        p.animState = 'RECOVER';
+                        p.animTimer = 0.3;
+                    }
+
+                } else if (p.animState === 'RECOVER') {
+                    p.animTimer -= dt;
+                    // Hold pose
+                    this.torso.rotation.x = 0.2;
+                    this.armR.rotation.set(1.0, 0, 0);
+
+                    if (p.animTimer <= 0) {
+                        p.animState = 'IDLE';
+                    }
+                }
+
+                // --- ENTITIES ---
+                // Timers
+                if (p.dashCd > 0) p.dashCd -= dt;
+                if (p.invincibleTimer > 0) p.invincibleTimer -= dt;
+
+                // Spell duration
+                if (p.spellDuration > 0) {
+                    p.spellDuration -= dt;
+
+                    // Continuous spell particles from sword
+                    if (Math.random() < 0.3) {
+                        const colors = { fire: 0xff6b35, ice: 0x5dade2, lightning: 0xf4d03f };
+                        const swordWorldPos = new THREE.Vector3();
+                        this.bladeMesh.getWorldPosition(swordWorldPos);
+                        this.spawnParticles(swordWorldPos, colors[p.currentSpell], 1, 0.8);
+                    }
+
+                    if (p.spellDuration <= 0) {
+                        p.currentSpell = null;
+                        this.bladeMesh.material.color.setHex(0xbdc3c7);
+                        this.bladeMesh.material.emissive.setHex(0x000000);
+                    }
+                }
+
+                // Update Entities
+                for (let i = this.entities.length - 1; i >= 0; i--) {
+                    const e = this.entities[i];
+
+                    // SPATIAL CULLING
+                    const distToPlayerSq = e.mesh.position.distanceToSquared(this.player.position);
+                    if (distToPlayerSq > 2500) { // > 50 units away
+                        e.mesh.visible = false;
+                        continue; // Skip update
+                    }
+                    e.mesh.visible = true;
+
+                    // Gravity
+                    e.velocity.y -= C.GRAVITY * dt;
+                    e.mesh.position.add(e.velocity.clone().multiplyScalar(dt));
+
+                    // Process status effects
+                    if (e.burning) {
+                        e.burning.time -= dt;
+                        e.hp -= e.burning.dps * dt;
+                        if (e.burning.time <= 0) delete e.burning;
+                        // Fire particles
+                        if (Math.random() < 0.3) this.spawnParticles(e.mesh.position, 0xff6b35, 1, 0.5);
+                    }
+                    if (e.frozen) {
+                        e.frozen -= dt;
+                        if (e.frozen <= 0) {
+                            delete e.frozen;
+                            delete e.speedMod;
+                        }
+                    }
+                    if (e.poisoned) {
+                        e.poisoned.time -= dt;
+                        e.hp -= e.poisoned.dps * dt;
+                        if (e.poisoned.time <= 0) {
+                            delete e.poisoned;
+                            e.mesh.traverse(c => { if (c.isMesh) c.material.color.setHex(0x2ecc71); }); // Reset color
+                        }
+                        if (Math.random() < 0.3) this.spawnParticles(e.mesh.position, 0x2ecc71, 1, 0.5);
+                    }
+
+                    // Enemy AI
+                    const speedMult = e.speedMod || 1;
+
+                    if (e.type === 'golem' && e.isBoss) {
+                        // Boss Golem: can jump attack
+                        if (e.state === 'CHASE') {
+                            const dir = new THREE.Vector3().subVectors(this.player.position, e.mesh.position);
+                            dir.y = 0; dir.normalize();
+                            e.mesh.position.add(dir.multiplyScalar(e.speed * speedMult * dt));
+                            e.mesh.lookAt(this.player.position);
+
+                            e.timer += dt;
+                            if (e.timer > 5.0) {
+                                e.state = 'JUMP';
+                                e.timer = 0;
+                                e.jumpStart = e.mesh.position.clone();
+                                e.jumpTarget = this.player.position.clone();
+                            }
+                        } else if (e.state === 'JUMP') {
+                            e.timer += dt;
+                            const t = e.timer / 1.5;
+                            e.mesh.position.lerpVectors(e.jumpStart, e.jumpTarget, t);
+                            e.mesh.position.y += Math.sin(t * Math.PI) * 12;
+                            e.mesh.rotation.y += dt * 3;
+
+                            if (t >= 1.0) {
+                                e.state = 'CHASE';
+                                e.timer = 0;
+                                e.mesh.rotation.set(0, 0, 0);
+                                this.triggerScreenShake(2.5); // Juice: Heavy shake
+                                this.audio.smash();
+                                this.spawnParticles(e.mesh.position, 0xff6b35, 60, 3.0);
+
+                                if (e.mesh.position.distanceTo(this.player.position) < 12 && p.invincibleTimer <= 0) {
+                                    p.hp -= e.damageToPlayer;
+                                    const push = new THREE.Vector3().subVectors(this.player.position, e.mesh.position).normalize();
+                                    p.velocity.add(push.multiplyScalar(50));
+                                }
+                            }
+                        }
+                    } else {
+                        // Standard enemy movement
+                        const dir = new THREE.Vector3().subVectors(this.player.position, e.mesh.position);
+                        dir.y = 0; dir.normalize();
+                        e.mesh.position.add(dir.multiplyScalar(e.speed * speedMult * dt));
+                        e.mesh.lookAt(this.player.position);
+
+                        // Wraith floats
+                        if (e.type === 'wraith') {
+                            e.mesh.position.y = 1.5 + Math.sin(Date.now() * 0.003) * 0.5;
+                            e.mesh.rotation.y += dt * 0.5; // Slow spin
+                        } else {
+                            // Others bob slightly
+                            e.mesh.position.y = 0 + Math.abs(Math.sin(Date.now() * 0.005)) * 0.2;
+                        }
+
+                        // Contact damage
+                        if (e.mesh.position.distanceTo(this.player.position) < 2 && p.invincibleTimer <= 0) {
+                            p.hp -= (e.damageToPlayer || 20) * dt;
+                            this.triggerScreenShake(0.3); // Juice: Shake on damage
+                        }
+                    }
+                }
+
+                // Update Particles (Pooled)
+                for (let i = this.particlePool.active.length - 1; i >= 0; i--) {
+                    const p = this.particlePool.active[i];
+                    p.lifetime -= dt;
+                    p.velocity.y -= C.GRAVITY * dt * 0.5;
+                    p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
+                    p.mesh.rotation.x += dt * 5;
+
+                    if (p.lifetime <= 0) {
+                        this.particlePool.release(p);
+                    }
+                }
+
+                // Update Floating Texts (Pooled) - POP EFFECT
+                for (let i = this.textPool.active.length - 1; i >= 0; i--) {
+                    const t = this.textPool.active[i];
+                    t.lifetime -= dt;
+                    t.position.y += dt * 1.5;
+
+                    const vector = t.position.clone().project(this.camera);
+                    const x = (vector.x * .5 + .5) * window.innerWidth;
+                    const y = (-(vector.y * .5) + .5) * window.innerHeight;
+
+                    // Pop Animation
+                    const maxLife = 1.0;
+                    const progress = 1 - (t.lifetime / maxLife);
+                    let scale = 1;
+                    if (progress < 0.2) scale = progress * 5;
+
+                    t.element.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+                    t.element.style.opacity = t.lifetime;
+                    t.element.style.fontWeight = 'bold';
+                    t.element.style.textShadow = '2px 2px 0 #000';
+
+                    if (t.lifetime <= 0) {
+                        t.element.style.display = 'none';
+                        this.textPool.release(t);
+                    }
+                }
+
+                // Animate background particles
+                const bgTime = Date.now() * 0.001;
+                this.bgParticles.forEach(p => {
+                    p.mesh.position.y += Math.sin(bgTime * p.speed + p.offset) * 0.01;
+                    p.mesh.position.x += Math.cos(bgTime * p.speed * 0.5 + p.offset) * 0.005;
+                });
+
+                // Update XP Orbs
+                for (let i = this.xpOrbs.length - 1; i >= 0; i--) {
+                    const orb = this.xpOrbs[i];
+
+                    // Bobbing animation
+                    orb.mesh.position.y = 1 + Math.sin(bgTime * 2 + orb.bobOffset) * 0.3;
+
+                    // Rotate
+                    orb.mesh.rotation.y += dt * 2;
+
+                    // Auto-collect if player nearby
+                    const dist = orb.mesh.position.distanceTo(this.player.position);
+                    if (dist < 2) {
+                        p.xp += orb.value * 4; // XP BOOST (4x)
+                        this.scene.remove(orb.mesh);
+                        this.xpOrbs.splice(i, 1);
+
+                        // Check for level up
+                        if (p.xp >= p.xpToNextLevel) {
+                            p.xp -= p.xpToNextLevel;
+                            p.level++;
+                            p.xpToNextLevel = Math.floor(p.xpToNextLevel * 1.5);
+                            this.showLevelUpScreen();
+                        }
+                        continue;
+                    }
+
+                    // Despawn after lifetime
+                    orb.lifetime -= dt;
+                    if (orb.lifetime <= 0) {
+                        this.scene.remove(orb.mesh);
+                        this.xpOrbs.splice(i, 1);
+                    }
+                }
+
+                // Update Projectiles
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    const proj = this.projectiles[i];
+
+                    // Move forward
+                    if (proj.direction) {
+                        proj.mesh.position.add(proj.direction.clone().multiplyScalar(proj.speed * dt));
+                    }
+                    proj.lifetime -= dt;
+
+                    // Check collision with enemies
+                    let hit = false;
+                    this.entities.forEach(e => {
+                        const dist = e.mesh.position.distanceTo(proj.mesh.position);
+
+                        // Gravity Pull
+                        if (proj.type === 'gravity') {
+                            if (dist < proj.radius) {
+                                const pull = proj.mesh.position.clone().sub(e.mesh.position).normalize();
+                                e.mesh.position.add(pull.multiplyScalar(0.5)); // Pull force
+                                e.hp -= 1; // DoT
+                            }
+                            return; // Don't destroy black hole on hit
+                        }
+
+                        if (dist < (e.scale || 1) + 0.5) {
+                            e.hp -= proj.damage;
+                            this.spawnFloatingText(e.mesh.position, proj.damage, '#ff6b35');
+                            this.spawnParticles(e.mesh.position, 0xff6b35, 15, 1.5);
+                            hit = true;
+                        }
+                    });
+
+                    // Remove if hit or expired
+                    if ((hit && proj.type !== 'gravity') || proj.lifetime <= 0) {
+                        this.scene.remove(proj.mesh);
+                        this.projectiles.splice(i, 1);
+                    }
+                }
+
+                // Update Lightning Strikes
+                for (let i = this.lightningStrikes.length - 1; i >= 0; i--) {
+                    const strike = this.lightningStrikes[i];
+
+                    if (strike.state === 'warning') {
+                        strike.delay -= dt;
+                        // Pulse warning
+                        strike.warningMesh.material.opacity = 0.3 + Math.sin(Date.now() * 0.01) * 0.2;
+
+                        if (strike.delay <= 0) {
+                            strike.state = 'strike';
+                            this.scene.remove(strike.warningMesh);
+
+                            // Create lightning bolt visual
+                            const boltGeo = new THREE.CylinderGeometry(0.3, 0.3, 30, 8);
+                            const boltMat = new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 2 });
+                            const bolt = new THREE.Mesh(boltGeo, boltMat);
+                            bolt.position.copy(strike.position);
+                            bolt.position.y = 15;
+                            this.scene.add(bolt);
+                            strike.boltMesh = bolt;
+                            strike.boltLife = 0.2;
+
+                            // Apply AoE damage
+                            this.entities.forEach(e => {
+                                const dist = e.mesh.position.distanceTo(strike.position);
+                                if (dist < strike.radius) {
+                                    e.hp -= strike.damage;
+                                    this.spawnFloatingText(e.mesh.position, strike.damage, '#ffff00');
+                                    this.spawnParticles(e.mesh.position, 0xffff00, 20, 2.0);
+                                }
+                            });
+
+                            this.screenShake = 0.8;
+                            this.audio.smash();
+                        }
+                    } else if (strike.state === 'strike') {
+                        strike.boltLife -= dt;
+                        if (strike.boltLife <= 0) {
+                            this.scene.remove(strike.boltMesh);
+                            this.lightningStrikes.splice(i, 1);
+                        }
+                    }
+                }
+
+                // Ice Aura (Level 2+)
+                if (p.spellLevels.ice >= 2 && p.currentSpell === 'ice') {
+                    const auraRadius = 5;
+                    this.entities.forEach(e => {
+                        const dist = e.mesh.position.distanceTo(this.player.position);
+                        if (dist < auraRadius) {
+                            e.frozen = 2;
+                            e.speedMod = 0.1;
+                            // Spawn ice particles occasionally
+                            if (Math.random() < 0.1) {
+                                this.spawnParticles(e.mesh.position, 0x5dade2, 2, 0.5);
+                            }
+                        }
+                    });
+                }
+
+                // Update Potions
+                this.potions.forEach(p => p.update(bgTime));
+
+                // Wave
+                if (this.state === 'PLAYING') {
+                    const enemyCount = this.entities.length; // Count all enemies
+                    if (enemyCount < 5 + this.wave) {
+                        this.waveTimer += dt;
+                        if (this.waveTimer > 1.0) {
+                            this.waveTimer = 0;
+                            // Spawn 1 boss per wave
+                            if (!this.bossSpawnedThisWave && enemyCount < 3) {
+                                this.spawnEnemy('enemy', true); // Boss
+                                this.bossSpawnedThisWave = true;
+                            } else {
+                                this.spawnEnemy('enemy');
+                            }
+                        }
+                    }
+                    if (this.kills > this.wave * 8) {
+                        this.wave++;
+                        this.bossSpawnedThisWave = false; // Reset for new wave
+                        document.getElementById('wave-display').innerText = 'WAVE ' + this.wave;
+                        this.spawnFloatingText(this.player.position, "WAVE " + this.wave, "#f1c40f");
+                    }
+                }
+
+                // Screen Shake
+                if (this.screenShake > 0) {
+                    const rx = (Math.random() - 0.5) * this.screenShake;
+                    const ry = (Math.random() - 0.5) * this.screenShake;
+                    this.camera.position.copy(C.CAMERA_OFFSET).add(new THREE.Vector3(rx, ry, 0));
+                    this.screenShake -= dt * 4;
+                    if (this.screenShake < 0) this.screenShake = 0;
+                } else {
+                    this.camera.position.copy(C.CAMERA_OFFSET);
+                }
+
+                // HUD
+                document.getElementById('hp-fill').style.width = (p.hp / p.maxHP * 100) + '%';
+                document.getElementById('mana-fill').style.width = (p.mana / p.maxMana * 100) + '%';
+                document.getElementById('xp-fill').style.width = (p.xp / p.xpToNextLevel * 100) + '%';
+                document.getElementById('level-text').innerText = p.level;
+                document.getElementById('kill-display').innerText = 'KILLS: ' + this.kills;
+
+                // Boss HP Numeric
+                const boss = this.entities.find(e => e.isBoss);
+                if (boss) {
+                    document.getElementById('boss-hp-bar').style.display = 'block';
+                    document.getElementById('boss-fill').style.width = (boss.hp / boss.maxHp * 100) + '%';
+                    document.getElementById('boss-label').innerText = `BOSS HP: ${Math.floor(boss.hp)}/${boss.maxHp}`;
+                } else {
+                    document.getElementById('boss-hp-bar').style.display = 'none';
+                }
+
+                if (p.hp <= 0) {
+                    this.state = 'GAMEOVER';
+                    document.getElementById('game-over').style.display = 'block';
+                    this.controls.unlock();
+                }
+            }
+
+            showLevelUpScreen() {
+                // Pause game
+                this.state = 'LEVELUP';
+                this.controls.unlock();
+
+                // Show level-up UI (will create HTML next)
+                document.getElementById('levelup-screen').style.display = 'flex';
+
+                // Generate 3 random upgrades
+                this.generateUpgradeOptions();
+            }
+
+            generateUpgradeOptions() {
+                // SPELL DATABASE
+                const SPELLS = {
+                    // Passives
+                    poison: { name: 'Poison Edge', desc: 'Attacks apply DoT', icon: '☠️', type: 'passive' },
+                    vampirism: { name: 'Vampirism', desc: 'Heal 5% of damage', icon: '🩸', type: 'passive' },
+
+                    // Elementals
+                    earth: { name: 'Earth Wall', desc: 'Create stone barrier', icon: '🧱', type: 'active' },
+                    wind: { name: 'Wind Blast', desc: 'Massive knockback', icon: '�', type: 'active' },
+                    gravity: { name: 'Black Hole', desc: 'Pull enemies in', icon: '⚫', type: 'active' },
+                    plants: { name: 'Entangle', desc: 'Root enemies', icon: '🌿', type: 'active' },
+                    wood: { name: 'Stake Throw', desc: 'Piercing projectiles', icon: '🪵', type: 'active' },
+                    plastic: { name: 'Plastic Wrap', desc: 'Slow enemies', icon: '🍬', type: 'active' },
+
+                    // Ultimate
+                    tech: { name: 'Glitch Storm', desc: 'Screen-wide damage', icon: '👾', type: 'active' },
+                    superman: { name: 'SUPERMAN MODE', desc: 'Flight + Lasers', icon: '🦸', type: 'ultimate' }
+                };
+
+                const options = [];
+                const keys = Object.keys(SPELLS);
+
+                // Select 3 random unique upgrades
+                while (options.length < 3) {
+                    const key = keys[Math.floor(Math.random() * keys.length)];
+                    if (!options.find(o => o.key === key)) {
+                        options.push({ key, ...SPELLS[key] });
+                    }
+                }
+
+                this.currentUpgradeOptions = options;
+
+                // Display in cards
+                for (let i = 0; i < 3; i++) {
+                    const card = document.getElementById(`upgrade-${i}`);
+                    const opt = options[i];
+                    card.querySelector('.upgrade-icon').innerText = opt.icon;
+                    card.querySelector('.upgrade-name').innerText = opt.name;
+                    card.querySelector('.upgrade-desc').innerText = opt.desc;
+                    card.style.display = 'block';
+
+                    // Highlight Ultimate
+                    if (opt.type === 'ultimate') {
+                        card.style.borderColor = '#e74c3c';
+                        card.style.boxShadow = '0 0 20px #e74c3c';
+                    } else {
+                        card.style.borderColor = '#f1c40f';
+                        card.style.boxShadow = '10px 10px 0 rgba(241, 196, 15, 0.5)';
+                    }
+                }
+            }
+
+            selectUpgrade(index) {
+                const upgrade = this.currentUpgradeOptions[index];
+                if (!upgrade) return;
+
+                // Apply upgrade
+                if (upgrade.type === 'passive') {
+                    this.playerStats.passives[upgrade.key] = true;
+                } else if (upgrade.type === 'ultimate') {
+                    if (upgrade.key === 'superman') this.activateSupermanMode();
+                } else {
+                    this.playerStats.spells.push(upgrade.key);
+                    this.playerStats.currentSpell = upgrade.key; // Auto-equip
+                }
+
+                // Hide screen and resume game
+                document.getElementById('levelup-screen').style.display = 'none';
+                this.state = 'PLAYING';
+                this.controls.lock();
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                const dt = Math.min(this.clock.getDelta(), 0.1);
+                this.update(dt);
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        class AssetManager {
+            constructor() {
+                this.geometries = {};
+                this.materials = {};
+                this.meshes = {};
+                this.init();
+            }
+
+            init() {
+                // Materials
+                this.materials.goblinBody = new THREE.MeshStandardMaterial({ color: 0x2d5016, roughness: 0.8 });
+                this.materials.goblinHead = new THREE.MeshStandardMaterial({ color: 0x3a6b20 });
+                this.materials.skeletonBone = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.9 });
+                this.materials.cultistRobe = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 1.0 });
+                this.materials.golemRock = new THREE.MeshStandardMaterial({ color: 0x5a5569, roughness: 1.0 });
+                this.materials.wraithBody = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.6, emissive: 0x0288d1, emissiveIntensity: 0.3 });
+                this.materials.knightArmor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.2 });
+                this.materials.knightHorn = new THREE.MeshStandardMaterial({ color: 0x4a0000 });
+                this.materials.knightSword = new THREE.MeshStandardMaterial({ color: 0xc0392b, metalness: 0.8, emissive: 0xff0000, emissiveIntensity: 0.15 });
+
+                // Geometries
+                this.geometries.sphere = new THREE.SphereGeometry(1, 8, 8);
+                this.geometries.box = new THREE.BoxGeometry(1, 1, 1);
+                this.geometries.cone = new THREE.ConeGeometry(1, 1, 8);
+                this.geometries.horn = new THREE.ConeGeometry(0.08, 0.4, 6);
+                this.geometries.sword = new THREE.BoxGeometry(0.2, 1.5, 0.08);
+                this.geometries.dodeca = new THREE.DodecahedronGeometry(1, 0);
+
+                // PRE-BUILD MESH GROUPS (The "Off-Screen Canvas" equivalent)
+                this.buildGoblin();
+                this.buildSkeleton();
+                this.buildCultist();
+                this.buildGolem();
+                this.buildWraith();
+                this.buildKnight();
+            }
+
+            buildGoblin() {
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(this.geometries.sphere, this.materials.goblinBody);
+                body.scale.set(0.3, 0.39, 0.24);
+                group.add(body);
+                const head = new THREE.Mesh(this.geometries.sphere, this.materials.goblinHead);
+                head.position.y = 0.5;
+                head.scale.set(0.25, 0.25, 0.25);
+                group.add(head);
+                this.meshes.goblin = group;
+            }
+
+            buildSkeleton() {
+                const group = new THREE.Group();
+                const skull = new THREE.Mesh(this.geometries.box, this.materials.skeletonBone);
+                skull.scale.set(0.4, 0.5, 0.4);
+                skull.position.y = 0.8;
+                group.add(skull);
+                const ribs = new THREE.Mesh(this.geometries.box, this.materials.skeletonBone);
+                ribs.scale.set(0.35, 0.6, 0.2);
+                ribs.position.y = 0.2;
+                group.add(ribs);
+                this.meshes.skeleton = group;
+            }
+
+            buildCultist() {
+                const group = new THREE.Group();
+                const robe = new THREE.Mesh(this.geometries.cone, this.materials.cultistRobe);
+                robe.scale.set(0.4, 1.2, 0.4);
+                robe.position.y = 0.6;
+                group.add(robe);
+                const hood = new THREE.Mesh(this.geometries.sphere, this.materials.cultistRobe);
+                hood.position.y = 1.1;
+                hood.scale.set(0.25, 0.25, 0.25);
+                group.add(hood);
+                this.meshes.cultist = group;
+            }
+
+            buildGolem() {
+                const group = new THREE.Group();
+                [0.6, 0.3, 0].forEach((y, i) => {
+                    const size = 0.5 - i * 0.1;
+                    const rock = new THREE.Mesh(this.geometries.dodeca, this.materials.golemRock);
+                    rock.position.y = y;
+                    rock.scale.set(size, size, size);
+                    rock.rotation.set(Math.random(), Math.random(), Math.random());
+                    group.add(rock);
+                });
+                this.meshes.golem = group;
+            }
+
+            buildWraith() {
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(this.geometries.cone, this.materials.wraithBody);
+                body.scale.set(0.4, 1.2, 0.4);
+                body.position.y = 0.8;
+                group.add(body);
+                this.meshes.wraith = group;
+            }
+
+            buildKnight() {
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(this.geometries.box, this.materials.knightArmor);
+                body.scale.set(0.5, 0.7, 0.3);
+                body.position.y = 0.5;
+                group.add(body);
+                const helm = new THREE.Mesh(this.geometries.box, this.materials.knightArmor);
+                helm.scale.set(0.3, 0.3, 0.3);
+                helm.position.y = 1.0;
+                group.add(helm);
+
+                // Horns
+                [-0.25, 0.25].forEach(side => {
+                    const horn = new THREE.Mesh(this.geometries.horn, this.materials.knightHorn);
+                    horn.position.set(side, 1.5, 0);
+                    horn.rotation.z = side * 0.5;
+                    group.add(horn);
+                });
+
+                // Big sword
+                const bigSword = new THREE.Mesh(this.geometries.sword, this.materials.knightSword);
+                bigSword.position.set(0.6, 0.5, 0);
+                bigSword.rotation.z = -Math.PI / 6;
+                group.add(bigSword);
+
+                this.meshes.knight = group;
+            }
+
+            getMesh(type) {
+                return this.meshes[type].clone();
+            }
+        }
+
+        class Chest {
+            constructor(game, x, z) {
+                this.game = game;
+                this.mesh = new THREE.Group();
+                this.mesh.position.set(x, 0, z);
+
+                // Chest Box
+                const box = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.5, 1, 1),
+                    new THREE.MeshStandardMaterial({ color: 0x8e44ad, metalness: 0.5, roughness: 0.5 })
+                );
+                box.position.y = 0.5;
+                this.mesh.add(box);
+
+                // Lid (Gold)
+                const lid = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.6, 0.2, 1.1),
+                    new THREE.MeshStandardMaterial({ color: 0xf1c40f, metalness: 1.0 })
+                );
+                lid.position.y = 1.0;
+                this.mesh.add(lid);
+
+                this.hp = 1; // One hit to open
+                this.game.scene.add(this.mesh);
+            }
+
+            takeDamage() {
+                this.hp--;
+                if (this.hp <= 0) {
+                    this.open();
+                }
+            }
+
+            open() {
+                // Spawn effects
+                this.game.spawnParticles(this.mesh.position, 0xf1c40f, 20, 2.0);
+                this.game.audio.smash(); // Reuse smash sound
+
+                // Drop items
+                const type = Math.random() < 0.5 ? 'hp' : 'mana';
+                this.game.spawnPotion(this.mesh.position.clone(), type);
+
+                // Remove chest
+                this.game.scene.remove(this.mesh);
+                this.game.chests = this.game.chests.filter(c => c !== this);
+            }
+        }
+
+        class Potion {
+            constructor(game, position, type) {
+                this.game = game;
+                this.type = type; // 'hp' or 'mana'
+                this.value = 50;
+
+                const color = type === 'hp' ? 0xe74c3c : 0x3498db;
+                this.mesh = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(0.4),
+                    new THREE.MeshStandardMaterial({
+                        color: color,
+                        emissive: color,
+                        emissiveIntensity: 0.8,
+                        transparent: true,
+                        opacity: 0.8
+                    })
+                );
+                this.mesh.position.copy(position);
+                this.mesh.position.y = 1.0;
+                this.game.scene.add(this.mesh);
+
+                this.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            update(time) {
+                this.mesh.position.y = 1.0 + Math.sin(time * 3 + this.bobOffset) * 0.2;
+                this.mesh.rotation.y += 0.05;
+
+                // Collection
+                if (this.mesh.position.distanceTo(this.game.player.position) < 1.5) {
+                    if (this.type === 'hp') {
+                        this.game.playerStats.hp = Math.min(this.game.playerStats.hp + this.value, this.game.playerStats.maxHP);
+                        this.game.spawnFloatingText(this.game.player.position, "+HP", "#e74c3c");
+                    } else {
+                        this.game.playerStats.mana = Math.min(this.game.playerStats.mana + this.value, this.game.playerStats.maxMana);
+                        this.game.spawnFloatingText(this.game.player.position, "+MANA", "#3498db");
+                    }
+                    this.game.scene.remove(this.mesh);
+                    this.game.potions = this.game.potions.filter(p => p !== this);
+                }
+            }
+        }
+
+        class ObjectPool {
+            constructor(createFn, initialSize = 50) {
+                this.createFn = createFn;
+                this.pool = [];
+                this.active = [];
+                for (let i = 0; i < initialSize; i++) {
+                    this.pool.push(this.createFn());
+                }
+            }
+
+            get() {
+                let obj = this.pool.pop();
+                if (!obj) {
+                    obj = this.createFn();
+                }
+                this.active.push(obj);
+                obj.active = true;
+                return obj;
+            }
+
+            release(obj) {
+                const index = this.active.indexOf(obj);
+                if (index > -1) {
+                    this.active.splice(index, 1);
+                    obj.active = false;
+                    if (obj.mesh) obj.mesh.visible = false; // Hide mesh
+                    this.pool.push(obj);
+                }
+            }
+        }
+
+        window.game = new Game();
+    </script>
+</body>
+
+</html>

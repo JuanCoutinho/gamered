@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAMERED | Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* PALETA SÉRIA & MODERNA */
+            --bg-deep: #080808;
+            --bg-card: #111111;
+            --neon-red: #FF2A4D; /* Vermelho Laser, mais moderno que o puro #FF0000 */
+            --neon-dim: rgba(255, 42, 77, 0.15);
+            --text-main: #FFFFFF;
+            --text-muted: #888888;
+            --border-color: rgba(255, 255, 255, 0.08);
+            
+            /* FÍSICA */
+            --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            /* Grid de fundo sutil e profissional */
+            background-image: 
+                linear-gradient(var(--border-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            overflow-x: hidden;
+        }
+
+        /* HEADER MINIMALISTA */
+        header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand {
+            font-family: 'JetBrains Mono', monospace; /* Tech feel */
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -0.05em;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand span { color: var(--neon-red); }
+
+        .user-panel {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* BENTO GRID SYSTEM */
+        .bento-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 260px;
+            gap: 20px; /* Espaçamento consistente */
+            width: 100%;
+            max-width: 1200px;
+            perspective: 1000px; /* Necessário para o 3D funcionar sem bugar */
+        }
+
+        /* O CARTÃO SÉRIO */
+        .card {
+            position: relative;
+            background-color: var(--bg-card);
+            border-radius: 12px; /* Curva moderna, não muito redonda */
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            transition: transform 0.1s, box-shadow 0.4s var(--ease-smooth), border-color 0.4s;
+            cursor: pointer;
+            will-change: transform; /* Otimização de performance */
+        }
+
+        /* LAYOUTS */
+        .span-2 { grid-column: span 2; }
+        .row-2 { grid-row: span 2; }
+
+        /* CONTEÚDO DO CARTÃO */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.5;
+            transition: opacity 0.4s, transform 0.4s;
+            filter: grayscale(100%); /* Começa preto e branco (Sério) */
+        }
+
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 100%);
+            z-index: 1;
+        }
+
+        .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px;
+            z-index: 2;
+            transform: translateY(0);
+            transition: transform 0.4s var(--ease-smooth);
+        }
+
+        .tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--neon-red);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            display: block;
+            opacity: 0.8;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: all 0.4s var(--ease-smooth);
+        }
+
+        /* ESTADO DE HOVER (A Mágica do Neon) */
+        .card:hover {
+            border-color: var(--neon-red); /* Borda acende */
+            box-shadow: 0 10px 40px -10px var(--neon-dim); /* Glow suave */
+            z-index: 10;
+        }
+
+        .card:hover .card-bg {
+            opacity: 0.8;
+            filter: grayscale(0%); /* Ganha cor */
+            transform: scale(1.05);
+        }
+
+        .card:hover .meta {
+            height: 20px;
+            opacity: 1;
+            margin-top: 8px;
+        }
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 1024px) {
+            .bento-container { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .bento-container { grid-template-columns: 1fr; }
+            .span-2 { grid-column: span 1; }
+            .row-2 { grid-row: span 1; height: 320px; }
+        }
+
+        /* EFEITO GLINT (BRILHO NO VIDRO) */
+        .card::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent);
+            transform: skewX(-25deg);
+            transition: 0.5s;
+            pointer-events: none;
+        }
+        .card:hover::after { left: 200%; transition: 0.7s; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <span>//</span> GAMERED
+        </div>
+        <div class="user-panel">
+            <span>ONLINE: 4208</span>
+            <span>SERVER: BR-1</span>
+        </div>
+    </header>
+
+    <main class="bento-container">
+
+        <div class="card span-2 row-2 js-tilt" data-tilt-scale="1.02">
+            <img src="https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=2000&auto=format&fit=crop" class="card-bg" alt="Game 1">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">Featured • Live Now</span>
+                <h3 style="font-size: 2rem;">Neon Protocol: Zero</h3>
+                <div class="meta">Cyberpunk RPG • 120ms Latency</div>
+            </div>
+        </div>
+
+        <div class="card js-tilt">
+            <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" class="card-bg" alt="Game 2">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">FPS Competitive</span>
+                <h3>Valor Strike</h3>
+                <div class="meta">Ranked Season 4</div>
+            </div>
+        </div>
+
+        <div class="card js-tilt">
+            <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071&auto=format&fit=crop" class="card-bg" alt="Game 3">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">Open World</span>
+                <h3>Elden Core</h3>
+                <div class="meta">Co-op Available</div>
+            </div>
+        </div>
+
+        <div class="card span-2 js-tilt">
+            <img src="https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=2070&auto=format&fit=crop" class="card-bg" alt="Game 4">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">Battle Royale</span>
+                <h3>Zone Wars</h3>
+                <div class="meta">Squads • Duos • Solo</div>
+            </div>
+        </div>
+
+        <div class="card js-tilt">
+            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop" class="card-bg" alt="Game 5">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">Arcade</span>
+                <h3>Pixel Drift</h3>
+                <div class="meta">High Score: 9999</div>
+            </div>
+        </div>
+
+        <div class="card js-tilt">
+            <img src="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=1974&auto=format&fit=crop" class="card-bg" alt="Game 6">
+            <div class="card-overlay"></div>
+            <div class="card-info">
+                <span class="tag">Strategy</span>
+                <h3>Hex Command</h3>
+                <div class="meta">Turn-based</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /* Aether Tilt Engine v3 (Stable)
+           Removemos o parallax interno complexo para evitar bugs visuais.
+           Focamos na rotação suave e elegante do container.
+        */
+
+        const cards = document.querySelectorAll('.js-tilt');
+
+        cards.forEach(card => {
+            card.addEventListener('mousemove', handleHover);
+            card.addEventListener('mouseleave', resetCard);
+        });
+
+        function handleHover(e) {
+            const card = this;
+            const rect = card.getBoundingClientRect();
+            
+            // Posição do mouse relativa ao centro do cartão
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            // Rotação Sutil (Máximo 7 graus - "Serious & Modern")
+            // Se passar de 10 graus, começa a parecer site antigo
+            const rotateX = ((y - centerY) / centerY) * -7;
+            const rotateY = ((x - centerX) / centerX) * 7;
+
+            // Aplica transformação limpa
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+        }
+
+        function resetCard() {
+            // Volta suavemente à posição original
+            this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+        }
+    </script>
+
+</body>
+</html>
