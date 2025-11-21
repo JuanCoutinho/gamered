@@ -307,7 +307,9 @@
             money: 5000, food: 100, water: 100, population: 0, wave: 1,
             nextWaveTime: Date.now() + WAVE_TIME * 1000, isHorde: false,
             tool: null, category: 'survival', timeOfDay: 0.3, day: 1,
-            grid: [], entities: [], lights: [], particles: []
+            gameStarted: false, // [NEW] Single Source of Truth Flag
+            hordeNotificationShown: false, // [NEW] Anti-Spam Flag
+            grid: [], entities: [], lights: [], particles: [], floatingTexts: [] // [NEW] Floating Texts
         };
 
         // --- THREE.JS SETUP ---
@@ -330,7 +332,10 @@
         controls.enableDamping = true;
         controls.maxPolarAngle = Math.PI / 2.1;
         controls.minDistance = 30;
+        controls.minDistance = 30;
         controls.maxDistance = 200;
+
+        const clock = new THREE.Clock(); // [NEW] Fix ReferenceError
 
         // Luzes
         const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -952,7 +957,14 @@
             g.position.set(x, 0, z);
             g.castShadow = true;
             entityGroup.add(g);
-            state.entities.push({ type, mesh: g, hp, maxHp: hp, speed, target: null, cooldown: 0, range });
+            const e = { mesh: g, type, hp, maxHp: hp, speed, range, cooldown: 0 };
+
+            // [NEW] Zombies target center immediately
+            if (type.includes('zombie')) {
+                e.target = { mesh: { position: new THREE.Vector3(0, 0, 0) }, type: 'center' };
+            }
+
+            state.entities.push(e);
         }
 
         function spawnAnimal(x, z) {
@@ -1408,6 +1420,8 @@
 
         // --- GAME LOOP ---
         function updateLogic() {
+            if (!state.gameStarted) return; // [NEW] Prevent logic before start
+
             // Ciclo Dia/Noite
             state.timeOfDay += 0.0003;
             if (state.timeOfDay > 1) { state.timeOfDay = 0; state.day++; document.getElementById('ui-day').innerText = state.day; }
@@ -1417,36 +1431,81 @@
 
             // Horda Noturna
             if (isNight && !state.isHorde) {
-                state.isHorde = true;
-                showBadge("Horda Noturna", "Zumbis estão vindo!", "fa-biohazard", "red");
-                document.body.classList.add("horde-active");
-                // Spawn loop
-                state.hordeInterval = setInterval(() => {
-                    // [NEW] Optimization: Hard Limit
-                    const zombieCount = state.entities.filter(e => e.type.includes('zombie')).length;
-                    if (zombieCount >= 150) return;
+                if (state.nextWaveTime - Date.now() <= 0 && !state.hordeNotificationShown) {
+                    state.isHorde = true;
+                    state.hordeNotificationShown = true; // [NEW] Lock Notification
+                    showBadge("Horda Noturna", "Zumbis estão vindo!", "fa-biohazard", "red");
+                    document.body.classList.add("horde-active");
+                    // Spawn loop
+                    function spawnHorde(count, type = 'zombie') {
+                        // [NEW] Simplified Radial Spawn (Darkness Logic)
+                        // Spawns zombies far away (350-450 units) to ensure they come from the darkness
+                        const MIN_RADIUS = 350;
+                        const MAX_RADIUS = 450;
 
-                    // [NEW] Evolution System
-                    let type = 'zombie'; // Default Green
-                    const day = state.day;
-                    const r = Math.random();
+                        // Center is Player (or Camera Target, effectively 0,0 mostly but let's use 0,0 for base defense)
+                        // User asked for "Centro = Jogador". Let's assume player is at 0,0 or find a player entity.
+                        // Since it's an RTS, "Player" is the camera focus or the base. 
+                        // The request says "x = player.x + ...". But we don't have a single 'player' entity variable easily accessible here 
+                        // without searching. However, the base is at 0,0. Let's use 0,0 as the center for now as it's the "Colony".
+                        const cx = 0;
+                        const cz = 0;
 
-                    if (day >= 6 && day <= 12) {
-                        if (r > 0.7) type = 'zombie_normal';
-                    } else if (day >= 13 && day <= 20) {
-                        if (r > 0.8) type = 'zombie_red';
-                        else if (r > 0.5) type = 'zombie_normal';
-                    } else if (day >= 21) {
-                        if (r > 0.9) type = 'zombie_black'; // Tank
-                        else if (r > 0.8) type = 'zombie_explosive';
-                        else if (r > 0.5) type = 'zombie_red';
-                        else type = 'zombie_normal';
+                        for (let i = 0; i < count; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const dist = MIN_RADIUS + Math.random() * (MAX_RADIUS - MIN_RADIUS);
+
+                            const x = cx + Math.cos(angle) * dist;
+                            const z = cz + Math.sin(angle) * dist;
+
+                            // Mutation Logic based on Day
+                            let zType = 'zombie';
+                            if (state.day >= 6 && state.day <= 12) zType = 'zombie';
+                            else if (state.day >= 13 && state.day <= 20) zType = 'zombie_red';
+                            else if (state.day >= 21) {
+                                const r = Math.random();
+                                if (r < 0.1) zType = 'zombie_black';
+                                else if (r < 0.3) zType = 'zombie_explosive';
+                                else zType = 'zombie_red';
+                            } else {
+                                zType = 'zombie';
+                            }
+
+                            if (type !== 'zombie') zType = type;
+
+                            spawnEntity(zType, x, z);
+                        }
+
+                        // Removed SoundManager.play('zombie') here to avoid spam if called frequently
                     }
+                    state.hordeInterval = setInterval(() => {
+                        // [NEW] Optimization: Hard Limit
+                        const zombieCount = state.entities.filter(e => e.type.includes('zombie')).length;
+                        if (zombieCount >= 150) return;
 
-                    spawnHorde(type);
-                }, 1000 - (Math.min(state.wave, 15) * 50));
+                        // [NEW] Evolution System
+                        let type = 'zombie'; // Default Green
+                        const day = state.day;
+                        const r = Math.random();
+
+                        if (day >= 6 && day <= 12) {
+                            if (r > 0.7) type = 'zombie_normal';
+                        } else if (day >= 13 && day <= 20) {
+                            if (r > 0.8) type = 'zombie_red';
+                            else if (r > 0.5) type = 'zombie_normal';
+                        } else if (day >= 21) {
+                            if (r > 0.9) type = 'zombie_black'; // Tank
+                            else if (r > 0.8) type = 'zombie_explosive';
+                            else if (r > 0.5) type = 'zombie_red';
+                            else type = 'zombie_normal';
+                        }
+
+                        spawnHorde(1, type); // Call the new spawnHorde function
+                    }, 1000 - (Math.min(state.wave, 15) * 50));
+                }
             } else if (!isNight && state.isHorde) {
                 state.isHorde = false;
+                state.hordeNotificationShown = false; // [NEW] Reset Flag
                 clearInterval(state.hordeInterval);
                 document.body.classList.remove("horde-active");
                 showBadge("Amanhecer", "Estamos seguros... por enquanto.", "fa-sun", "green");
@@ -1564,11 +1623,13 @@
                 if (p.life <= 0) { fxGroup.remove(p.m); state.particles.splice(i, 1); }
             }
 
-            // [NEW] Population Sync
-            syncPopulation();
+            // [NEW] Single Source of Truth for Population
+            const survivors = state.entities.filter(e => ['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol', 'fisherman', 'sniper', 'tank', 'marine'].includes(e.type));
+            state.population = survivors.length;
+            document.getElementById('ui-pop').innerText = state.population;
 
             // [NEW] Game Over
-            if (state.population <= 0 && state.day > 1) { // Grace period day 1
+            if (state.gameStarted && state.population <= 0) {
                 alert("GAME OVER - A Colônia Caiu");
                 location.reload();
                 return;
@@ -1577,40 +1638,54 @@
             updateEntities();
         }
 
-        // [NEW] Sync Population Visuals
-        function syncPopulation() {
-            // Prevent negative
-            if (state.population < 0) state.population = 0;
 
-            const citizens = state.entities.filter(e => e.type === 'citizen');
-            const count = citizens.length;
 
-            if (count < state.population) {
-                // Spawn missing
-                const diff = state.population - count;
-                for (let i = 0; i < diff; i++) {
-                    // Try to spawn near a house or center
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.random() * 20;
-                    spawnEntity('citizen', Math.cos(angle) * dist, Math.sin(angle) * dist);
-                }
-            } else if (count > state.population) {
-                // Remove excess (Kill oldest/random)
-                const diff = count - state.population;
-                for (let i = 0; i < diff; i++) {
-                    const victim = citizens[i]; // Simple FIFO
-                    // Remove visual
-                    entityGroup.remove(victim.mesh);
-                    // Remove from array
-                    const idx = state.entities.indexOf(victim);
-                    if (idx > -1) state.entities.splice(idx, 1);
+        // --- FLOATING TEXT SYSTEM ---
+        function spawnDamageText(x, y, z, damage, isCrit = false) {
+            const div = document.createElement('div');
+            div.className = 'absolute pointer-events-none font-bold select-none text-shadow';
+            div.style.color = isCrit ? '#ef4444' : '#fbbf24'; // Red for Crit, Amber for Normal
+            div.style.fontSize = isCrit ? '24px' : '16px';
+            div.style.textShadow = '1px 1px 0 #000';
+            div.innerText = Math.round(damage);
+            document.body.appendChild(div);
+
+            state.floatingTexts.push({
+                div: div,
+                pos: new THREE.Vector3(x, y + 2, z),
+                life: 1.0,
+                velocity: new THREE.Vector3(0, 2, 0) // Float up
+            });
+        }
+
+        function updateFloatingTexts(dt) {
+            for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+                const ft = state.floatingTexts[i];
+                ft.life -= dt;
+                ft.pos.add(ft.velocity.clone().multiplyScalar(dt));
+
+                if (ft.life <= 0) {
+                    ft.div.remove();
+                    state.floatingTexts.splice(i, 1);
+                } else {
+                    // Project to Screen
+                    const screenPos = ft.pos.clone().project(camera);
+                    const x = (screenPos.x * .5 + .5) * window.innerWidth;
+                    const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
+
+                    ft.div.style.left = `${x}px`;
+                    ft.div.style.top = `${y}px`;
+                    ft.div.style.opacity = ft.life;
                 }
             }
         }
 
         // --- UI HELPERS ---
         function updateMoney(v) { state.money += v; document.getElementById('ui-money').innerText = state.money; }
-        function updatePop(v) { state.population += v; document.getElementById('ui-pop').innerText = state.population; }
+        function updatePop(v) {
+            // state.population is now read-only from entities length
+            // This function is kept if we want to show badges or effects, but logic is auto-synced
+        }
         function updateFood(v) { state.food += v; document.getElementById('ui-food').innerText = state.food; }
         function updateWater(v) { state.water += v; document.getElementById('ui-water').innerText = state.water; }
 
@@ -1797,14 +1872,19 @@
 
             // [NEW] Initial Loot
             LootSystem.spawnRandom(10);
+
+            state.gameStarted = true; // [NEW] Start Game Over Check
         }
         window.startGame = startGame;
 
         function animate() {
-            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
             controls.update();
             updateLogic();
+            updateEntities();
+            updateFloatingTexts(dt); // [NEW] Update Floating Texts
             renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
         animate();
 
@@ -1812,3 +1892,4 @@
 </body>
 
 </html>
+```
