@@ -971,12 +971,33 @@
             spawnEntity(Math.random() > 0.5 ? 'cow' : 'sheep', x, z);
         }
 
-        function spawnHorde(type = 'zombie') {
+        // [FIX] New Infallible Spawn Logic
+        function getSpawnPosition() {
+            // Tenta achar um herói para ser o centro, senão usa 0,0
+            let playerPos = { x: 0, y: 0, z: 0 };
+            const hero = state.entities.find(e => ['rick', 'michonne', 'daryl', 'carol'].includes(e.type));
+            if (hero) playerPos = hero.mesh.position;
+
+            const minDistance = 1200; // Distância mínima (garante que está no escuro/nevoa)
+            const maxDistance = 1800; // Distância máxima
+
+            // 1. Sorteia um ângulo qualquer (360º)
             const angle = Math.random() * Math.PI * 2;
-            const r = 45; // Edge of map
-            const x = Math.cos(angle) * r;
-            const z = Math.sin(angle) * r;
-            spawnEntity(type, x, z);
+            // 2. Sorteia uma distância na faixa da escuridão
+            const radius = minDistance + Math.random() * (maxDistance - minDistance);
+
+            // 3. Calcula X e Z
+            const spawnX = playerPos.x + Math.cos(angle) * radius;
+            const spawnZ = playerPos.z + Math.sin(angle) * radius;
+
+            return { x: spawnX, y: 0, z: spawnZ };
+        }
+
+        function spawnHorde(count = 1, type = 'zombie') {
+            for (let i = 0; i < count; i++) {
+                const pos = getSpawnPosition();
+                spawnEntity(type, pos.x, pos.z);
+            }
         }
 
 
@@ -1423,7 +1444,8 @@
             if (!state.gameStarted) return; // [NEW] Prevent logic before start
 
             // Ciclo Dia/Noite
-            state.timeOfDay += 0.0003;
+            // Ciclo Dia/Noite
+            state.timeOfDay += 0.00006; // [FIX] 5x Slower (was 0.0003)
             if (state.timeOfDay > 1) { state.timeOfDay = 0; state.day++; document.getElementById('ui-day').innerText = state.day; }
 
             const t = state.timeOfDay;
@@ -1437,47 +1459,7 @@
                     showBadge("Horda Noturna", "Zumbis estão vindo!", "fa-biohazard", "red");
                     document.body.classList.add("horde-active");
                     // Spawn loop
-                    function spawnHorde(count, type = 'zombie') {
-                        // [NEW] Simplified Radial Spawn (Darkness Logic)
-                        // Spawns zombies far away (350-450 units) to ensure they come from the darkness
-                        const MIN_RADIUS = 350;
-                        const MAX_RADIUS = 450;
-
-                        // Center is Player (or Camera Target, effectively 0,0 mostly but let's use 0,0 for base defense)
-                        // User asked for "Centro = Jogador". Let's assume player is at 0,0 or find a player entity.
-                        // Since it's an RTS, "Player" is the camera focus or the base. 
-                        // The request says "x = player.x + ...". But we don't have a single 'player' entity variable easily accessible here 
-                        // without searching. However, the base is at 0,0. Let's use 0,0 as the center for now as it's the "Colony".
-                        const cx = 0;
-                        const cz = 0;
-
-                        for (let i = 0; i < count; i++) {
-                            const angle = Math.random() * Math.PI * 2;
-                            const dist = MIN_RADIUS + Math.random() * (MAX_RADIUS - MIN_RADIUS);
-
-                            const x = cx + Math.cos(angle) * dist;
-                            const z = cz + Math.sin(angle) * dist;
-
-                            // Mutation Logic based on Day
-                            let zType = 'zombie';
-                            if (state.day >= 6 && state.day <= 12) zType = 'zombie';
-                            else if (state.day >= 13 && state.day <= 20) zType = 'zombie_red';
-                            else if (state.day >= 21) {
-                                const r = Math.random();
-                                if (r < 0.1) zType = 'zombie_black';
-                                else if (r < 0.3) zType = 'zombie_explosive';
-                                else zType = 'zombie_red';
-                            } else {
-                                zType = 'zombie';
-                            }
-
-                            if (type !== 'zombie') zType = type;
-
-                            spawnEntity(zType, x, z);
-                        }
-
-                        // Removed SoundManager.play('zombie') here to avoid spam if called frequently
-                    }
+                    // Spawn loop removed (using global spawnHorde)
                     state.hordeInterval = setInterval(() => {
                         // [NEW] Optimization: Hard Limit
                         const zombieCount = state.entities.filter(e => e.type.includes('zombie')).length;
