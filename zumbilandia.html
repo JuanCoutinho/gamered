@@ -136,6 +136,12 @@
                 </div>
             </div>
             <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-widest">ÁGUA</div>
+                <div class="text-2xl font-bold text-cyan-400 flex items-center gap-2">
+                    <i class="fas fa-tint"></i> <span id="ui-water">100</span>
+                </div>
+            </div>
+            <div>
                 <div class="text-[10px] text-gray-400 font-bold tracking-widest">SOBREVIVENTES</div>
                 <div class="text-2xl font-bold text-blue-400 flex items-center gap-2">
                     <i class="fas fa-users"></i> <span id="ui-pop">0</span>
@@ -224,6 +230,10 @@
             play: (name) => {
                 const audio = new Audio(SOUNDS[name]);
                 audio.volume = 0.3;
+                // Pitch Variation (0.9 - 1.1)
+                audio.playbackRate = 0.9 + Math.random() * 0.2;
+                // Preserves pitch if browser supports (optional, usually we want pitch change for effect)
+                // audio.preservesPitch = false; 
                 audio.play().catch(e => console.log("Audio blocked:", e));
             }
         };
@@ -248,6 +258,7 @@
 
         // Definição de Construções
         const BUILDINGS = {
+            'cursor': { cat: 'tools', name: 'Cancelar', cost: 0, icon: 'fa-mouse-pointer', color: 'gray-500', desc: 'Limpar seleção' },
             'bulldoze': { cat: 'tools', name: 'Demolir', cost: 10, icon: 'fa-eraser', color: 'red-500' },
 
             // Sobrevivência / Exploração
@@ -267,21 +278,33 @@
             'bench': { cat: 'city', name: 'Banco', cost: 20, hp: 50, icon: 'fa-chair', color: 'amber-800', desc: 'Decoração' },
 
             // Defesa
-            'wall': { cat: 'defense', name: 'Muralha', cost: 50, hp: 1500, icon: 'fa-th-large', color: 'stone-600' },
+            'wall_v': { cat: 'defense', name: 'Muro (V)', cost: 50, hp: 1500, icon: 'fa-ruler-vertical', color: 'stone-600' },
+            'wall_h': { cat: 'defense', name: 'Muro (H)', cost: 50, hp: 1500, icon: 'fa-ruler-horizontal', color: 'stone-600' },
             'turret': { cat: 'defense', name: 'Torre', cost: 500, hp: 400, dmg: 25, range: 30, rate: 800, icon: 'fa-chess-rook', color: 'slate-700' },
+            'turret_gatling': { cat: 'defense', name: 'Gatling', cost: 1200, hp: 600, dmg: 10, range: 25, rate: 100, icon: 'fa-dharmachakra', color: 'yellow-800', desc: 'Tiro Rápido' },
             'barracks': { cat: 'defense', name: 'Base Militar', cost: 1000, hp: 1000, unit: 'soldier', icon: 'fa-person-rifle', color: 'green-800', desc: 'Treina Soldados' },
-            'mine': { cat: 'defense', name: 'Mina', cost: 100, hp: 10, icon: 'fa-land-mine-on', color: 'red-700', desc: 'Explode ao toque' },
+            'marine_camp': { cat: 'defense', name: 'Posto Fuzileiro', cost: 1500, hp: 800, unit: 'marine', icon: 'fa-person-military-rifle', color: 'green-600', desc: 'Fuzileiro (DPS)' },
+            'tank_factory': { cat: 'defense', name: 'Fábrica Tanques', cost: 5000, hp: 2000, unit: 'tank', icon: 'fa-truck-monster', color: 'slate-900', desc: 'Tanque (AOE)' },
+            'mine': { cat: 'defense', name: 'Mina Terrestre', cost: 100, hp: 10, icon: 'fa-land-mine-on', color: 'red-700', desc: 'Explode ao toque' },
             'bomb': { cat: 'defense', name: 'C4', cost: 200, hp: 10, icon: 'fa-bomb', color: 'black', desc: 'Detonação remota' },
 
-            // Heróis
+            // Economia
+            'gold_mine': { cat: 'city', name: 'Mina de Ouro', cost: 1500, hp: 500, icon: 'fa-gem', color: 'yellow-600', desc: 'Gera Ouro' },
+            'factory': { cat: 'city', name: 'Fábrica', cost: 1000, hp: 300, icon: 'fa-industry', color: 'slate-500', desc: 'Gera Dinheiro' },
+
+            // Heróis / Especiais
             'rick': { cat: 'heroes', name: 'Rick', cost: 1000, hp: 500, unit: 'rick', icon: 'fa-sheriff-badge', color: 'amber-600', desc: 'Líder (Magnum)' },
             'michonne': { cat: 'heroes', name: 'Michonne', cost: 1000, hp: 500, unit: 'michonne', icon: 'fa-khanda', color: 'purple-600', desc: 'Espadachim (Katana)' },
             'daryl': { cat: 'heroes', name: 'Daryl', cost: 1000, hp: 500, unit: 'daryl', icon: 'fa-bullseye', color: 'stone-500', desc: 'Caçador (Besta)' },
-            'carol': { cat: 'heroes', name: 'Carol', cost: 1000, hp: 500, unit: 'carol', icon: 'fa-bomb', color: 'gray-400', desc: 'Explosivos (AOE)' }
+            'carol': { cat: 'heroes', name: 'Carol', cost: 1000, hp: 500, unit: 'carol', icon: 'fa-bomb', color: 'gray-400', desc: 'Explosivos (AOE)' },
+
+            // Atualizações de Spawn
+            'fishing': { cat: 'survival', name: 'Pesca', cost: 250, hp: 150, unit: 'fisherman', icon: 'fa-fish', color: 'blue-400', desc: 'Gera Comida (Pescador)' },
+            'explorer': { cat: 'survival', name: 'Cabana Explorador', cost: 300, hp: 200, unit: 'sniper', icon: 'fa-map-marked-alt', color: 'amber-700', desc: 'Sniper (Longo Alcance)' },
         };
 
         let state = {
-            money: 5000, food: 100, population: 0, wave: 1,
+            money: 5000, food: 100, water: 100, population: 0, wave: 1,
             nextWaveTime: Date.now() + WAVE_TIME * 1000, isHorde: false,
             tool: null, category: 'survival', timeOfDay: 0.3, day: 1,
             grid: [], entities: [], lights: [], particles: []
@@ -641,6 +664,38 @@
                 const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
                 t.position.set(0, 1, 0);
                 mesh.add(b, t);
+            } else if (type === 'wall_v') {
+                // [MODIFIED] Wall (V) with Pillars
+                mesh = new THREE.Group();
+                const w = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 10), MATS.stone);
+                w.position.y = 4;
+                // Pillars at ends
+                const p1 = new THREE.Mesh(new THREE.BoxGeometry(3, 9, 3), MATS.stone);
+                p1.position.set(0, 4.5, -4.5);
+                const p2 = new THREE.Mesh(new THREE.BoxGeometry(3, 9, 3), MATS.stone);
+                p2.position.set(0, 4.5, 4.5);
+                mesh.add(w, p1, p2);
+            } else if (type === 'wall_h') {
+                // [MODIFIED] Wall (H) with Pillars
+                mesh = new THREE.Group();
+                const w = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 2), MATS.stone);
+                w.position.y = 4;
+                // Pillars at ends
+                const p1 = new THREE.Mesh(new THREE.BoxGeometry(3, 9, 3), MATS.stone);
+                p1.position.set(-4.5, 4.5, 0);
+                const p2 = new THREE.Mesh(new THREE.BoxGeometry(3, 9, 3), MATS.stone);
+                p2.position.set(4.5, 4.5, 0);
+                mesh.add(w, p1, p2);
+            } else if (type === 'turret_gatling') {
+                mesh = new THREE.Group();
+                const b = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), MATS.metal);
+                b.position.y = 2;
+                const h = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 2), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
+                h.position.y = 4.5;
+                mesh.add(b, h);
+            } else if (['barracks', 'marine_camp', 'tank_factory'].includes(type)) {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 4), MATS.wood);
+                mesh.position.y = 1;
             } else if (type === 'factory') {
                 mesh = new THREE.Group();
                 const b = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 8), MATS.metal);
@@ -678,6 +733,13 @@
                 const pipe = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.3, 8, 20), MATS.metal);
                 pipe.position.y = 3; pipe.rotation.x = Math.PI / 2;
                 mesh.add(b, pipe);
+            } else if (type === 'gold_mine') {
+                mesh = new THREE.Group();
+                const b = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 6), MATS.stone);
+                b.position.y = 1;
+                const g = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5 }));
+                g.position.y = 3;
+                mesh.add(b, g);
             } else if (type === 'bench') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 1.5), MATS.wood);
                 mesh.position.y = 0.5;
@@ -700,16 +762,62 @@
 
             buildGroup.add(mesh);
             cell.type = type;
-            cell.data = { mesh: mesh, hp: spec.hp, light: cell.light };
+            // [NEW] Production Data
+            let prodData = {};
+            if (type === 'farm') prodData = { prodRate: 5000, prodType: 'food', prodAmount: 10 };
+            if (type === 'lumber') prodData = { prodRate: 5000, prodType: 'money', prodAmount: 10 };
+            if (type === 'factory') prodData = { prodRate: 5000, prodType: 'money', prodAmount: 75 }; // Buffed
+            if (type === 'fishing') prodData = { prodRate: 5000, prodType: 'food', prodAmount: 15 };
+            if (type === 'gold_mine') prodData = { prodRate: 8000, prodType: 'money', prodAmount: 100 };
+            if (type === 'water_pump') prodData = { prodRate: 4000, prodType: 'water', prodAmount: 20 };
+
+            cell.data = { mesh: mesh, hp: spec.hp, light: cell.light, ...prodData };
 
             updateMoney(-spec.cost);
             if (spec.pop) updatePop(spec.pop);
-            if (spec.food) updateFood(spec.food); // Aumenta capacidade ou estoque
-            if (spec.unit) spawnEntity(spec.unit, pos.x, pos.z);
-            if (type === 'house') spawnEntity('citizen', pos.x, pos.z); // Casa spawna gente
+            // if (spec.food) updateFood(spec.food); // Removed instant food, now production
+            if (spec.unit) {
+                // Spawn outside the building to avoid being stuck
+                spawnEntity(spec.unit, pos.x + 3, pos.z + 3);
+            }
+            if (type === 'house') spawnEntity('citizen', pos.x + 2, pos.z + 2); // Casa spawna gente
 
             createParticles(pos, 0xffffff, 8);
             SoundManager.play('build');
+        }
+
+        // [NEW] Floating Text Helper
+        function showFloatingText(text, pos, color) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            div.style.position = 'absolute';
+            div.style.color = color;
+            div.style.fontWeight = 'bold';
+            div.style.fontSize = '12px';
+            div.style.pointerEvents = 'none';
+            div.style.textShadow = '1px 1px 0 #000';
+            document.body.appendChild(div);
+
+            // Project 3D pos to 2D screen
+            const p = pos.clone();
+            p.y += 2;
+            p.project(camera);
+            const x = (p.x * .5 + .5) * window.innerWidth;
+            const y = (-(p.y * .5) + .5) * window.innerHeight;
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+
+            // Animate
+            let life = 1.0;
+            const anim = setInterval(() => {
+                life -= 0.02;
+                div.style.opacity = life;
+                div.style.top = `${parseFloat(div.style.top) - 1}px`;
+                if (life <= 0) {
+                    clearInterval(anim);
+                    div.remove();
+                }
+            }, 30);
         }
 
         // --- ENTIDADES (Zumbis, Pessoas, Animais) ---
@@ -726,6 +834,24 @@
                 body.position.y = 1; head.position.y = 2.4;
                 g.add(body, head);
                 speed = 0.03;
+            } else if (type === 'fisherman') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x0ea5e9 })); // Blue
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0xffccaa }));
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+                rod.rotation.x = Math.PI / 4; rod.position.set(0.5, 2, 1);
+                body.position.y = 1; head.position.y = 2.4;
+                g.add(body, head, rod);
+                speed = 0.02;
+            } else if (type === 'sniper') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x3f6212 })); // Camo
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 3), new THREE.MeshStandardMaterial({ color: 0x000000 })); // Long gun
+                gun.position.set(0.5, 1.5, 1);
+                body.position.y = 1; head.position.y = 2.4;
+                g.add(body, head, gun);
+                hp = 100;
+                speed = 0.05;
+                range = 40;
             } else if (type === 'soldier') {
                 const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2, 1.2), new THREE.MeshStandardMaterial({ color: 0x166534 }));
                 const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 })); // Capacete
@@ -745,21 +871,75 @@
                 if (type === 'carol') range = 15; // Grenade
                 if (type === 'michonne') range = 2; // Melee
             } else if (type === 'zombie') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x4d7c0f })); // Verde podre
+                // Green (Weak)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
                 const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x3f6212 }));
-                const arms = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x4d7c0f })); // Braços pra frente
+                const arms = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
                 body.position.y = 1; head.position.y = 2.4; arms.position.set(0, 1.6, 0.5);
                 g.add(body, head, arms);
-                hp = 20 + (state.wave * 5);
-                speed = 0.04 + (state.wave * 0.005);
-            } else if (type === 'boss') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3, 6, 3), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-                const head = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
-                body.position.y = 3; head.position.y = 7;
-                g.add(body, head);
-                hp = 2000 + (state.wave * 500);
-                speed = 0.03;
-                g.scale.set(1.5, 1.5, 1.5);
+                hp = 20 + (state.wave * 2); speed = 0.03;
+            } else if (type === 'zombie_normal') {
+                // Grey (Medium)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x6b7280 }));
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x374151 }));
+                const arms = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x6b7280 }));
+                body.position.y = 1; head.position.y = 2.4; arms.position.set(0, 1.6, 0.5);
+                g.add(body, head, arms);
+                hp = 40 + (state.wave * 3); speed = 0.05;
+            } else if (type === 'zombie_red') {
+                // Red (Fast)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0xb91c1c }));
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x7f1d1d }));
+                const arms = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xb91c1c }));
+                body.position.y = 1; head.position.y = 2.4; arms.position.set(0, 1.6, 0.5);
+                g.add(body, head, arms);
+                hp = 60 + (state.wave * 4); speed = 0.07;
+            } else if (type === 'zombie_black') {
+                // Black Ops (Tank)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+                const head = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                const arms = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+                body.position.y = 1.1; head.position.y = 2.6; arms.position.set(0, 1.7, 0.5);
+                g.add(body, head, arms);
+                hp = 200 + (state.wave * 10); speed = 0.04;
+            } else if (type === 'zombie_explosive') {
+                // Yellow (Explosive)
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0xeab308 }));
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0xa16207 }));
+                const arms = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xeab308 }));
+                body.position.y = 1; head.position.y = 2.4; arms.position.set(0, 1.6, 0.5);
+                g.add(body, head, arms);
+                hp = 30 + (state.wave * 3); speed = 0.06;
+            } else if (type === 'tank') {
+                // Player Tank - 3x Scale
+                const body = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4.5, 12), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+                const turret = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3, 6), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 9), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+                barrel.rotation.x = Math.PI / 2; barrel.position.z = 4.5;
+                body.position.y = 2.25; turret.position.y = 6; turret.add(barrel);
+                g.add(body, turret);
+                hp = 3000; speed = 0.05; range = 30;
+
+                // Spawn Check
+                let valid = false;
+                let attempts = 0;
+                while (!valid && attempts < 10) {
+                    if (PhysicsSystem.isFree(g.position)) {
+                        valid = true;
+                    } else {
+                        g.position.x = x + (Math.random() - 0.5) * 20;
+                        g.position.z = z + (Math.random() - 0.5) * 20;
+                        attempts++;
+                    }
+                }
+            } else if (type === 'marine') {
+                // Fuzileiro
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2, 1.1), new THREE.MeshStandardMaterial({ color: 0x15803d }));
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+                body.position.y = 1; head.position.y = 2.4; gun.position.set(0.3, 1.5, 0.5);
+                g.add(body, head, gun);
+                hp = 80; speed = 0.06; range = 18;
             } else if (type === 'cow') {
                 const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 3), new THREE.MeshStandardMaterial({ color: 0xffffff }));
                 const spots = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1, 1.5), new THREE.MeshStandardMaterial({ color: 0x000000 }));
@@ -779,17 +959,116 @@
             spawnEntity(Math.random() > 0.5 ? 'cow' : 'sheep', x, z);
         }
 
-        function spawnHorde() {
+        function spawnHorde(type = 'zombie') {
             const angle = Math.random() * Math.PI * 2;
-            const dist = (VISIBLE_RADIUS * TILE_SIZE) + 20; // Fora da visão
-            const center = new THREE.Vector3(0, 0, 0);
-
-            // Spawnar na borda revelada mais próxima ou longe
-            // Simplificado: Spawnar em um circulo
-            const x = Math.cos(angle) * 200;
-            const z = Math.sin(angle) * 200;
-            spawnEntity('zombie', x, z);
+            const r = 45; // Edge of map
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            spawnEntity(type, x, z);
         }
+
+
+
+        // --- PHYSICS SYSTEM (NEW) ---
+        const PhysicsSystem = {
+            // Retorna o AABB da entidade ou posição
+            getBox: (pos, size = 0.8) => {
+                return {
+                    minX: pos.x - size / 2, maxX: pos.x + size / 2,
+                    minZ: pos.z - size / 2, maxZ: pos.z + size / 2
+                };
+            },
+
+            // Verifica intersecção entre dois AABBs
+            checkOverlap: (box1, box2) => {
+                return (box1.minX <= box2.maxX && box1.maxX >= box2.minX &&
+                    box1.minZ <= box2.maxZ && box1.maxZ >= box2.minZ);
+            },
+
+            // Verifica se a posição é válida (não colide com sólidos)
+            isFree: (pos, ignoreEntity = null) => {
+                // 1. Limites do Mundo
+                const limit = (GRID_SIZE * TILE_SIZE) / 2;
+                if (pos.x < -limit || pos.x > limit || pos.z < -limit || pos.z > limit) return false;
+
+                // 2. Colisão com Grid (Construções)
+                const gx = Math.round((pos.x + limit - TILE_SIZE / 2) / TILE_SIZE);
+                const gz = Math.round((pos.z + limit - TILE_SIZE / 2) / TILE_SIZE);
+
+                if (gx >= 0 && gx < GRID_SIZE && gz >= 0 && gz < GRID_SIZE) {
+                    const cell = state.grid[gx][gz];
+                    // Lista de construções sólidas
+                    const solids = ['wall', 'wall_v', 'wall_h', 'turret', 'turret_gatling', 'barracks', 'marine_camp', 'tank_factory', 'house', 'factory', 'hospital', 'market', 'water_pump', 'fishing', 'explorer', 'farm', 'gold_mine'];
+                    if (cell.type && solids.includes(cell.type)) {
+                        // Colisão simples: Se o centro da entidade entrar na célula ocupada
+                        // Refinamento: Verificar AABB da célula vs AABB da entidade
+                        let cellBox = {
+                            minX: (gx * TILE_SIZE) - limit, maxX: (gx * TILE_SIZE) - limit + TILE_SIZE,
+                            minZ: (gz * TILE_SIZE) - limit, maxZ: (gz * TILE_SIZE) - limit + TILE_SIZE
+                        };
+
+                        // [NEW] Custom Hitboxes for Walls
+                        if (cell.type === 'wall_v') {
+                            // Thinner on X (Width 3 for Pillars)
+                            const center = (cellBox.minX + cellBox.maxX) / 2;
+                            cellBox.minX = center - 1.5; cellBox.maxX = center + 1.5;
+                        } else if (cell.type === 'wall_h') {
+                            // Thinner on Z (Width 3 for Pillars)
+                            const center = (cellBox.minZ + cellBox.maxZ) / 2;
+                            cellBox.minZ = center - 1.5; cellBox.maxZ = center + 1.5;
+                        }
+
+                        const entBox = PhysicsSystem.getBox(pos);
+                        if (PhysicsSystem.checkOverlap(cellBox, entBox)) return false;
+                    }
+                    // Água é sólida para não-barcos (todos por enquanto)
+                    if (cell.mesh.userData.biome === 'water' && cell.type !== 'fishing') { // Fishing allows standing on deck? No, simplified.
+                        // Check biome directly from mesh data is tricky if we don't have grid ref easily, but we do here.
+                        // Actually, let's trust the grid check.
+                    }
+                }
+
+                // 3. Colisão com outras Entidades (Soft Collision / Push)
+                // Opcional para performance: apenas checar se muito perto
+                /*
+                for (let e of state.entities) {
+                    if (e === ignoreEntity || e.hp <= 0) continue;
+                    if (pos.distanceTo(e.mesh.position) < 0.8) return false;
+                }
+                */
+                return true;
+            },
+
+            // Tenta mover a entidade. Se colidir, desliza (slide) ou para.
+            move: (entity, desiredDir, speed) => {
+                const currentPos = entity.mesh.position.clone();
+                const velocity = desiredDir.clone().multiplyScalar(speed);
+                const nextPos = currentPos.clone().add(velocity);
+
+                // Tentativa 1: Movimento completo
+                if (PhysicsSystem.isFree(nextPos, entity)) {
+                    entity.mesh.position.copy(nextPos);
+                    return true;
+                }
+
+                // Tentativa 2: Slide X (Zera Z)
+                const nextPosX = currentPos.clone().add(new THREE.Vector3(velocity.x, 0, 0));
+                if (Math.abs(velocity.x) > 0.001 && PhysicsSystem.isFree(nextPosX, entity)) {
+                    entity.mesh.position.copy(nextPosX);
+                    return true;
+                }
+
+                // Tentativa 3: Slide Z (Zera X)
+                const nextPosZ = currentPos.clone().add(new THREE.Vector3(0, 0, velocity.z));
+                if (Math.abs(velocity.z) > 0.001 && PhysicsSystem.isFree(nextPosZ, entity)) {
+                    entity.mesh.position.copy(nextPosZ);
+                    return true;
+                }
+
+                // Bloqueado
+                return false;
+            }
+        };
 
         function updateEntities() {
             const center = new THREE.Vector3(0, 0, 0);
@@ -798,13 +1077,13 @@
                 if (e.hp <= 0) return;
 
                 // IA Zumbi
-                if (e.type === 'zombie') {
+                if (e.type.includes('zombie')) {
                     // Achar alvo (humano ou construção)
                     if (!e.target || e.target.hp <= 0) {
                         // Buscar humano mais próximo
                         let closeDist = 9999;
                         state.entities.forEach(other => {
-                            if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol'].includes(other.type)) {
+                            if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol', 'fisherman', 'sniper', 'tank', 'marine'].includes(other.type)) {
                                 const d = e.mesh.position.distanceTo(other.mesh.position);
                                 if (d < closeDist) { closeDist = d; e.target = other; }
                             }
@@ -815,35 +1094,103 @@
 
                     // Mover
                     const dir = new THREE.Vector3().subVectors(e.target.mesh.position, e.mesh.position).normalize();
-                    e.mesh.position.add(dir.multiplyScalar(e.speed));
+                    // [MODIFIED] Use PhysicsSystem
+                    PhysicsSystem.move(e, dir, e.speed);
                     e.mesh.lookAt(e.target.mesh.position);
 
                     // Atacar
                     if (e.target.type !== 'center' && e.mesh.position.distanceTo(e.target.mesh.position) < 2) {
                         if (Date.now() > e.cooldown) {
-                            e.target.hp -= 5;
+                            e.target.hp -= (e.type === 'zombie_black' ? 20 : 5); // Tank hits harder
                             createParticles(e.target.mesh.position, 0xff0000, 2);
                             e.cooldown = Date.now() + 1000;
+
+                            // Explosive Zombie Logic
+                            if (e.type === 'zombie_explosive') {
+                                e.hp = 0; // Die and explode
+                                createParticles(e.mesh.position, 0xeab308, 20);
+                                SoundManager.play('explosion');
+                                state.entities.forEach(ent => {
+                                    if (ent.mesh.position.distanceTo(e.mesh.position) < 5) ent.hp -= 50;
+                                });
+                            }
                         }
                     } else {
-                        // Checar colisão com prédio
-                        // (Simplificado)
+                        // Checar colisão com prédio (Attack wall)
+                        const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(e.mesh.quaternion);
+                        const next = e.mesh.position.clone().add(fwd);
+                        const limit = (GRID_SIZE * TILE_SIZE) / 2;
+                        const gx = Math.round((next.x + limit - TILE_SIZE / 2) / TILE_SIZE);
+                        const gz = Math.round((next.z + limit - TILE_SIZE / 2) / TILE_SIZE);
+                        if (state.grid[gx] && state.grid[gx][gz] && state.grid[gx][gz].data) {
+                            const b = state.grid[gx][gz];
+                            if (Date.now() > e.cooldown) {
+                                b.data.hp -= (e.type === 'zombie_black' ? 40 : 10);
+                                createParticles(next, 0xaaaaaa, 3);
+                                e.cooldown = Date.now() + 1000;
+
+                                if (e.type === 'zombie_explosive') {
+                                    e.hp = 0; // Die and explode on wall
+                                    createParticles(e.mesh.position, 0xeab308, 20);
+                                    SoundManager.play('explosion');
+                                    // Damage wall significantly
+                                    b.data.hp -= 200;
+                                }
+
+                                if (b.data.hp <= 0) {
+                                    buildGroup.remove(b.data.mesh);
+                                    if (b.data.light) scene.remove(b.data.light);
+                                    b.type = null; b.data = null;
+                                    createParticles(next, 0x555555, 20);
+                                    SoundManager.play('explosion');
+                                }
+                            }
+                        }
                     }
 
                 }
-                // IA Cidadão/Soldado/Herois
-                else if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol'].includes(e.type)) {
-                    const isCombatUnit = e.type !== 'citizen';
+                // IA Cidadão/Soldado/Herois/Especiais/Tanque
+                else if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol', 'fisherman', 'sniper', 'tank', 'marine'].includes(e.type)) {
+                    const isCombatUnit = !['citizen', 'fisherman'].includes(e.type);
+
+                    // Fisherman Logic (Produce Food)
+                    if (e.type === 'fisherman') {
+                        if (!e.lastProd) e.lastProd = Date.now();
+                        if (Date.now() - e.lastProd > 5000) {
+                            e.lastProd = Date.now();
+                            updateFood(5);
+                            showFloatingText("+5 Food", e.mesh.position, 'cyan');
+                        }
+                    }
 
                     if (isCombatUnit) {
                         // Atacar zumbis
-                        const zombie = state.entities.find(z => z.type === 'zombie' && z.mesh.position.distanceTo(e.mesh.position) < (e.range || 20) && z.hp > 0);
+                        const zombie = state.entities.find(z => z.type.includes('zombie') && z.mesh.position.distanceTo(e.mesh.position) < (e.range || 20) && z.hp > 0);
 
                         if (zombie) {
                             e.mesh.lookAt(zombie.mesh.position);
                             if (Date.now() > e.cooldown) {
                                 // Efeitos e Dano por Tipo
-                                if (e.type === 'rick') {
+                                if (e.type === 'tank') {
+                                    // Tank AOE
+                                    createParticles(zombie.mesh.position, 0xff4500, 30);
+                                    SoundManager.play('explosion');
+                                    state.entities.forEach(ent => {
+                                        if (ent.type.includes('zombie') && ent.mesh.position.distanceTo(zombie.mesh.position) < 5) {
+                                            ent.hp -= 150;
+                                        }
+                                    });
+                                    e.cooldown = Date.now() + 2000; // Slow fire
+                                } else if (e.type === 'marine') {
+                                    // Fast Fire
+                                    const laser = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, e.mesh.position.distanceTo(zombie.mesh.position)), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+                                    laser.position.copy(e.mesh.position).lerp(zombie.mesh.position, 0.5);
+                                    laser.lookAt(zombie.mesh.position);
+                                    fxGroup.add(laser); setTimeout(() => fxGroup.remove(laser), 30);
+                                    SoundManager.play('shoot');
+                                    zombie.hp -= 15;
+                                    e.cooldown = Date.now() + 100; // Very fast
+                                } else if (e.type === 'rick') {
                                     // Magnum: Knockback + High Dmg
                                     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, e.mesh.position.distanceTo(zombie.mesh.position)), new THREE.MeshBasicMaterial({ color: 0xffd700 }));
                                     laser.position.copy(e.mesh.position).lerp(zombie.mesh.position, 0.5);
@@ -854,19 +1201,34 @@
                                     zombie.hp -= 100; // One shot most
                                     // Knockback
                                     const push = new THREE.Vector3().subVectors(zombie.mesh.position, e.mesh.position).normalize().multiplyScalar(5);
-                                    zombie.mesh.position.add(push);
+                                    // [MODIFIED] Use Physics Check for Knockback
+                                    if (PhysicsSystem.isFree(zombie.mesh.position.clone().add(push))) {
+                                        zombie.mesh.position.add(push);
+                                    }
                                     e.cooldown = Date.now() + 1000;
+                                } else if (e.type === 'sniper') {
+                                    // Sniper: High Dmg, Long Range
+                                    const laser = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, e.mesh.position.distanceTo(zombie.mesh.position)), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+                                    laser.position.copy(e.mesh.position).lerp(zombie.mesh.position, 0.5);
+                                    laser.lookAt(zombie.mesh.position);
+                                    fxGroup.add(laser); setTimeout(() => fxGroup.remove(laser), 200);
+                                    SoundManager.play('shoot');
+                                    zombie.hp -= 300; // One shot
+                                    e.cooldown = Date.now() + 2000;
                                 } else if (e.type === 'michonne') {
                                     // Katana: Melee
                                     if (e.mesh.position.distanceTo(zombie.mesh.position) < 3) {
                                         zombie.hp -= 80;
                                         createParticles(zombie.mesh.position, 0xff0000, 10);
                                         // Dash visual
-                                        e.mesh.position.lerp(zombie.mesh.position, 0.2);
+                                        // [MODIFIED] Safe Dash
+                                        const dashPos = zombie.mesh.position.clone();
+                                        if (PhysicsSystem.isFree(dashPos)) e.mesh.position.lerp(dashPos, 0.2);
                                     } else {
                                         // Move closer if out of range but targeted
                                         const dir = new THREE.Vector3().subVectors(zombie.mesh.position, e.mesh.position).normalize();
-                                        e.mesh.position.add(dir.multiplyScalar(e.speed));
+                                        // [MODIFIED] Use Physics
+                                        PhysicsSystem.move(e, dir, e.speed);
                                     }
                                     e.cooldown = Date.now() + 600;
                                 } else if (e.type === 'daryl') {
@@ -898,7 +1260,7 @@
                                             SoundManager.play('explosion');
                                             // AOE Damage
                                             state.entities.forEach(ent => {
-                                                if (ent.type === 'zombie' && ent.mesh.position.distanceTo(targetPos) < 8) {
+                                                if (ent.type.includes('zombie') && ent.mesh.position.distanceTo(targetPos) < 8) {
                                                     ent.hp -= 150;
                                                 }
                                             });
@@ -915,22 +1277,45 @@
                                     e.cooldown = Date.now() + 500;
                                 }
                             }
-                            return; // Busy attacking
                         }
                     }
 
-                    // Andar aleatório (Patrulha)
+                    // Andar aleatório (Patrulha) - Agora para TODOS (Soldados, Cidadãos, Pescadores, Tanques)
+                    // Se não tiver alvo, escolhe um ponto aleatório
                     if (!e.target || e.mesh.position.distanceTo(e.target) < 1) {
+                        // Tank Patrol: Slower, deliberate
                         e.target = new THREE.Vector3((Math.random() - 0.5) * 100, 0, (Math.random() - 0.5) * 100);
                     }
                     const dir = new THREE.Vector3().subVectors(e.target, e.mesh.position).normalize();
-                    e.mesh.position.add(dir.multiplyScalar(e.speed));
+
+                    // [MODIFIED] Use Physics & Handle Collision
+                    // For Tank, we might need to check a wider radius, but for now standard move.
+                    const moved = PhysicsSystem.move(e, dir, e.speed);
+                    if (!moved) {
+                        // Se bloqueado, muda de alvo imediatamente
+                        e.target = new THREE.Vector3((Math.random() - 0.5) * 100, 0, (Math.random() - 0.5) * 100);
+
+                        // Tank Unstuck Logic
+                        if (e.type === 'tank') {
+                            e.mesh.rotation.y += Math.PI; // Turn around
+                            e.mesh.position.add(dir.multiplyScalar(-2)); // Back up
+                        }
+                    }
+
                     e.mesh.lookAt(e.target);
                 }
                 // Animais
                 else {
                     if (Math.random() > 0.99) e.mesh.rotation.y += Math.random();
-                    e.mesh.translateZ(e.speed);
+
+                    // [MODIFIED] Use Physics & Handle Collision
+                    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(e.mesh.quaternion);
+                    const moved = PhysicsSystem.move(e, fwd, e.speed);
+
+                    if (!moved) {
+                        // Se bater, gira 180 graus (ou aleatório)
+                        e.mesh.rotation.y += Math.PI + (Math.random() - 0.5);
+                    }
                 }
             });
 
@@ -943,6 +1328,10 @@
                     else if (state.entities[i].type === 'citizen') {
                         updatePop(-1);
                         showBadge("Baixa", "Um cidadão morreu!", "fa-skull", "red");
+                        if (cell.type && !(type === 'lamp' && cell.type === 'road')) {
+                            showBadge("Ocupado", "Já existe algo aqui.", "fa-ban", "red");
+                            return;
+                        }
                     }
                     state.entities.splice(i, 1);
                 }
@@ -964,6 +1353,59 @@
             }
         }
 
+        // --- LOOT SYSTEM (NEW) ---
+        const LootSystem = {
+            items: [],
+
+            spawn: (x, z, type = 'money') => {
+                // Check for solids before spawning
+                if (!PhysicsSystem.isFree(new THREE.Vector3(x, 0, z))) return;
+
+                const g = new THREE.Group();
+
+                // Visual do Loot
+                let color = 0xffd700; // Gold
+                if (type === 'food') color = 0xffaa00; // Food
+
+                const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 }));
+                box.position.y = 0.5;
+
+                // Icone flutuante
+                const icon = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                icon.position.y = 1.0;
+
+                g.add(box, icon);
+                g.position.set(x, 0, z);
+
+                fxGroup.add(g);
+                // [MODIFIED] Buffed Loot
+                const val = type === 'money' ? 75 : 10; // Was 50
+                LootSystem.items.push({ mesh: g, type, val, rot: Math.random() });
+            },
+
+            spawnRandom: (count = 5) => {
+                for (let i = 0; i < count; i++) {
+                    const x = (Math.random() - 0.5) * 100;
+                    const z = (Math.random() - 0.5) * 100;
+                    LootSystem.spawn(x, z, Math.random() > 0.5 ? 'money' : 'food');
+                }
+            },
+
+            update: () => {
+                const playerUnits = state.entities.filter(e => ['rick', 'michonne', 'daryl', 'carol', 'soldier', 'citizen'].includes(e.type));
+
+                for (let i = LootSystem.items.length - 1; i >= 0; i--) {
+                    const item = LootSystem.items[i];
+
+                    // Animação
+                    item.mesh.rotation.y += 0.05;
+                    item.mesh.children[1].position.y = 1.0 + Math.sin(Date.now() * 0.005 + item.rot) * 0.2;
+
+                    // Coleta via Click (Removido auto-coleta)
+                }
+            }
+        };
+
         // --- GAME LOOP ---
         function updateLogic() {
             // Ciclo Dia/Noite
@@ -979,7 +1421,30 @@
                 showBadge("Horda Noturna", "Zumbis estão vindo!", "fa-biohazard", "red");
                 document.body.classList.add("horde-active");
                 // Spawn loop
-                state.hordeInterval = setInterval(spawnHorde, 1000 - (state.wave * 50));
+                state.hordeInterval = setInterval(() => {
+                    // [NEW] Optimization: Hard Limit
+                    const zombieCount = state.entities.filter(e => e.type.includes('zombie')).length;
+                    if (zombieCount >= 150) return;
+
+                    // [NEW] Evolution System
+                    let type = 'zombie'; // Default Green
+                    const day = state.day;
+                    const r = Math.random();
+
+                    if (day >= 6 && day <= 12) {
+                        if (r > 0.7) type = 'zombie_normal';
+                    } else if (day >= 13 && day <= 20) {
+                        if (r > 0.8) type = 'zombie_red';
+                        else if (r > 0.5) type = 'zombie_normal';
+                    } else if (day >= 21) {
+                        if (r > 0.9) type = 'zombie_black'; // Tank
+                        else if (r > 0.8) type = 'zombie_explosive';
+                        else if (r > 0.5) type = 'zombie_red';
+                        else type = 'zombie_normal';
+                    }
+
+                    spawnHorde(type);
+                }, 1000 - (Math.min(state.wave, 15) * 50));
             } else if (!isNight && state.isHorde) {
                 state.isHorde = false;
                 clearInterval(state.hordeInterval);
@@ -988,66 +1453,89 @@
                 state.wave++;
                 document.getElementById('ui-wave').innerText = state.wave;
 
-                // Boss Spawn
-                if (state.wave % 1 === 0) { // Every night for now
-                    spawnEntity('boss', (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100);
-                    showBadge("BOSS", "Um mutante gigante apareceu!", "fa-skull-crossbones", "red");
-                }
+                // Boss Removed as per request
             }
 
-            // Consumo de Comida
+            // Consumo de Comida e Água
             if (Math.random() > 0.99 && state.population > 0) {
                 state.food -= 1;
+                state.water -= 1;
+
                 if (state.food < 0) {
                     state.food = 0;
                     updatePop(-1); // Fome mata
                     showBadge("Fome", "Alguém morreu de fome!", "fa-utensils", "red");
                 }
+                if (state.water < 0) {
+                    state.water = 0;
+                    updatePop(-1); // Sede mata
+                    showBadge("Sede", "Alguém morreu de sede!", "fa-tint", "cyan");
+                }
+
                 document.getElementById('ui-food').innerText = state.food;
+                document.getElementById('ui-water').innerText = state.water;
             }
 
-            // Building Effects (Factory, Hospital, Mines)
-            if (Math.random() > 0.95) {
-                // Loop grid occasionally
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    for (let z = 0; z < GRID_SIZE; z++) {
-                        const cell = state.grid[x][z];
-                        if (!cell.type) continue;
+            // Building Effects (Factory, Hospital, Mines, Economy)
+            const now = Date.now();
+            // Loop grid occasionally (or every frame if optimized, let's do every frame but check timer)
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const cell = state.grid[x][z];
+                    if (!cell.type || !cell.data) continue;
 
-                        // Factory Income
-                        if (cell.type === 'factory' && Math.random() > 0.98) {
-                            updateMoney(50);
-                            createParticles(cell.mesh.position, 0xffff00, 5);
+                    // [NEW] Production Logic
+                    if (cell.data.prodRate && cell.data.prodType) {
+                        if (!cell.data.lastProd) cell.data.lastProd = now;
+                        if (now - cell.data.lastProd > cell.data.prodRate) {
+                            cell.data.lastProd = now;
+
+                            // Produce
+                            if (cell.data.prodType === 'money') {
+                                updateMoney(cell.data.prodAmount);
+                                // Feedback
+                                showFloatingText(`+$${cell.data.prodAmount}`, cell.mesh.position, 'yellow');
+                            } else if (cell.data.prodType === 'food') {
+                                updateFood(cell.data.prodAmount);
+                                showFloatingText(`+${cell.data.prodAmount} Food`, cell.mesh.position, 'orange');
+                            } else if (cell.data.prodType === 'water') {
+                                updateWater(cell.data.prodAmount);
+                                showFloatingText(`+${cell.data.prodAmount} Water`, cell.mesh.position, 'cyan');
+                            }
                         }
-                        // Hospital Heal
-                        if (cell.type === 'hospital') {
-                            state.entities.forEach(e => {
-                                if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol'].includes(e.type) && e.hp < e.maxHp && e.mesh.position.distanceTo(cell.mesh.position) < 10) {
-                                    e.hp += 1;
-                                }
-                            });
-                        }
-                        // Mine Logic (Check zombies)
-                        if (cell.type === 'mine') {
-                            state.entities.forEach(e => {
-                                if (e.type === 'zombie' && e.mesh.position.distanceTo(cell.mesh.position) < 2) {
-                                    // Explode
-                                    createParticles(cell.mesh.position, 0xff0000, 20);
-                                    SoundManager.play('explosion');
-                                    e.hp -= 100;
-                                    // AOE
-                                    state.entities.forEach(other => {
-                                        if (other.mesh.position.distanceTo(cell.mesh.position) < 5) other.hp -= 50;
-                                    });
-                                    // Remove Mine
-                                    buildGroup.remove(cell.data.mesh);
-                                    cell.type = null; cell.data = null;
-                                }
-                            });
-                        }
+                    }
+
+                    // Hospital Heal
+                    if (cell.type === 'hospital') {
+                        state.entities.forEach(e => {
+                            if (['citizen', 'soldier', 'rick', 'michonne', 'daryl', 'carol'].includes(e.type) && e.hp < e.maxHp && e.mesh.position.distanceTo(cell.mesh.position) < 10) {
+                                e.hp += 1;
+                            }
+                        });
+                    }
+                    // Mine Logic (Check zombies)
+                    if (cell.type === 'mine') {
+                        state.entities.forEach(e => {
+                            if (e.type === 'zombie' && e.mesh.position.distanceTo(cell.mesh.position) < 2) {
+                                // Explode
+                                createParticles(cell.mesh.position, 0xff0000, 20);
+                                SoundManager.play('explosion');
+                                e.hp -= 100;
+                                // AOE
+                                state.entities.forEach(other => {
+                                    if (other.mesh.position.distanceTo(cell.mesh.position) < 5) other.hp -= 50;
+                                });
+                                // Remove Mine
+                                buildGroup.remove(cell.data.mesh);
+                                cell.type = null; cell.data = null;
+                            }
+                        });
                     }
                 }
             }
+
+            // [NEW] Update Loot
+            LootSystem.update();
 
             // Visuais Dia/Noite
             const sunAngle = (t - 0.25) * Math.PI * 2;
@@ -1076,13 +1564,55 @@
                 if (p.life <= 0) { fxGroup.remove(p.m); state.particles.splice(i, 1); }
             }
 
+            // [NEW] Population Sync
+            syncPopulation();
+
+            // [NEW] Game Over
+            if (state.population <= 0 && state.day > 1) { // Grace period day 1
+                alert("GAME OVER - A Colônia Caiu");
+                location.reload();
+                return;
+            }
+
             updateEntities();
+        }
+
+        // [NEW] Sync Population Visuals
+        function syncPopulation() {
+            // Prevent negative
+            if (state.population < 0) state.population = 0;
+
+            const citizens = state.entities.filter(e => e.type === 'citizen');
+            const count = citizens.length;
+
+            if (count < state.population) {
+                // Spawn missing
+                const diff = state.population - count;
+                for (let i = 0; i < diff; i++) {
+                    // Try to spawn near a house or center
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * 20;
+                    spawnEntity('citizen', Math.cos(angle) * dist, Math.sin(angle) * dist);
+                }
+            } else if (count > state.population) {
+                // Remove excess (Kill oldest/random)
+                const diff = count - state.population;
+                for (let i = 0; i < diff; i++) {
+                    const victim = citizens[i]; // Simple FIFO
+                    // Remove visual
+                    entityGroup.remove(victim.mesh);
+                    // Remove from array
+                    const idx = state.entities.indexOf(victim);
+                    if (idx > -1) state.entities.splice(idx, 1);
+                }
+            }
         }
 
         // --- UI HELPERS ---
         function updateMoney(v) { state.money += v; document.getElementById('ui-money').innerText = state.money; }
         function updatePop(v) { state.population += v; document.getElementById('ui-pop').innerText = state.population; }
         function updateFood(v) { state.food += v; document.getElementById('ui-food').innerText = state.food; }
+        function updateWater(v) { state.water += v; document.getElementById('ui-water').innerText = state.water; }
 
         function showBadge(t, msg, i, c = 'blue') {
             const b = document.createElement('div');
@@ -1099,7 +1629,14 @@
                 if (v.cat !== state.category && v.cat !== 'tools') return;
                 const d = document.createElement('div');
                 d.className = `build-card glass rounded-xl p-2 min-w-[80px] flex flex-col items-center gap-1 ${state.tool === k ? 'active' : ''}`;
-                d.onclick = () => { state.tool = k; renderMenu(); };
+                d.onclick = () => {
+                    if (k === 'cursor') {
+                        state.tool = null;
+                    } else {
+                        state.tool = k;
+                    }
+                    renderMenu();
+                };
                 d.innerHTML = `<div class="w-8 h-8 rounded-full bg-${v.color} flex items-center justify-center text-white shadow-md"><i class="fas ${v.icon}"></i></div><div class="text-[10px] font-bold uppercase mt-1 text-center">${v.name}</div><div class="text-[9px] text-yellow-400">$${v.cost}</div>`;
                 c.appendChild(d);
             });
@@ -1131,11 +1668,67 @@
             } else highlight.visible = false;
         });
 
+        window.addEventListener('contextmenu', e => e.preventDefault()); // Disable context menu
+
         window.addEventListener('pointerdown', e => {
             if (e.target.closest('.glass') || e.target.closest('button')) return;
 
-            // Check for Bomb Detonation
+            // Right Click = Cancel / Clear Selection
+            if (e.button === 2) {
+                state.tool = null;
+                renderMenu();
+                highlight.visible = false;
+                return;
+            }
+
+            // Left Click Only
+            if (e.button !== 0) return;
+
+            // 1. Correção das Coordenadas do Mouse
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            console.log(`Clique detectado em X:${mouse.x.toFixed(2)}, Y:${mouse.y.toFixed(2)}`);
+
             raycaster.setFromCamera(mouse, camera);
+
+            // 2. Lógica de Colisão (Loot)
+            // Verificar interseção com caixas de loot
+            // Precisamos checar os meshes dentro dos grupos de loot
+            const lootMeshes = LootSystem.items.map(i => i.mesh);
+            const lootHits = raycaster.intersectObjects(lootMeshes, true);
+
+            if (lootHits.length > 0) {
+                // Encontrar o item correspondente
+                // O hit pode ser no box ou no icone, então pegamos o grupo pai (ou avô)
+                const hitObj = lootHits[0].object;
+                const lootGroup = hitObj.parent; // O grupo contém box e icon
+
+                const index = LootSystem.items.findIndex(i => i.mesh === lootGroup);
+
+                if (index !== -1) {
+                    const item = LootSystem.items[index];
+
+                    // 3. Feedback Visual e Remoção
+                    console.log('Caixa coletada!', item.type);
+
+                    // Efeito
+                    createParticles(item.mesh.position, 0xffff00, 10);
+                    SoundManager.play('collect');
+
+                    // Atualizar saldo
+                    if (item.type === 'money') updateMoney(item.val);
+                    if (item.type === 'food') updateFood(item.val);
+
+                    // Remover
+                    fxGroup.remove(item.mesh);
+                    LootSystem.items.splice(index, 1);
+                    return; // Stop propagation
+                }
+            }
+
+            // Check for Bomb Detonation
             const hits = raycaster.intersectObjects(buildGroup.children, true); // Recursive
             if (hits.length > 0) {
                 const obj = hits[0].object;
@@ -1167,6 +1760,14 @@
             }
         });
 
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                state.tool = null;
+                renderMenu();
+                highlight.visible = false;
+            }
+        });
+
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -1183,7 +1784,19 @@
             const cx = Math.floor(GRID_SIZE / 2);
             build(cx, cx, 'house');
             build(cx + 2, cx, 'farm');
+            build(cx + 2, cx, 'farm');
             state.money = 5000; updateMoney(0);
+
+            // [NEW] Initial Population
+            for (let i = 0; i < 15; i++) {
+                spawnEntity('citizen', (Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50);
+            }
+            for (let i = 0; i < 5; i++) {
+                spawnEntity('zombie', (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100);
+            }
+
+            // [NEW] Initial Loot
+            LootSystem.spawnRandom(10);
         }
         window.startGame = startGame;
 
