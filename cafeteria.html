@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Espresso Dungeon: Reforged</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1b1e;
+            --accent-gold: #fbbf24;
+            --accent-danger: #ef4444;
+            --slot-bg: #2d2a2e;
+        }
+
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background-color: #000;
+            color: #e5e7eb;
+            overflow: hidden;
+            touch-action: none;
+            image-rendering: pixelated;
+        }
+
+        /* --- CRT EFFECT --- */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; w: 100vw; h: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 999;
+        }
+        .vignette {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+            pointer-events: none;
+            z-index: 998;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .pixel-box {
+            background-color: var(--bg-panel);
+            border: 4px solid #3f3f46;
+            box-shadow: inset 0 0 0 2px #000, 4px 4px 0px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .pixel-btn {
+            background-color: #4b5563;
+            border-top: 2px solid #9ca3af;
+            border-left: 2px solid #9ca3af;
+            border-right: 2px solid #1f2937;
+            border-bottom: 2px solid #1f2937;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .pixel-btn:active {
+            transform: translate(2px, 2px);
+            border-top: 2px solid #1f2937;
+            border-left: 2px solid #1f2937;
+            border-right: 2px solid #9ca3af;
+            border-bottom: 2px solid #9ca3af;
+        }
+
+        /* --- GAMEPLAY ELEMENTS --- */
+        .card-ingredient {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: grab;
+        }
+        .card-ingredient:active {
+            cursor: grabbing;
+        }
+        
+        .cauldron-liquid {
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s;
+        }
+
+        .monster-sprite {
+            image-rendering: pixelated;
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .damage-shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        .float-text {
+            animation: floatUp 1s forwards;
+            position: absolute;
+            pointer-events: none;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 50;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+
+        /* Drag Ghost */
+        .ghost-item {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.9;
+            transform: translate(-50%, -50%) scale(1.1) rotate(5deg);
+            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
+        }
+
+        /* Recipe Bubble */
+        .bubble {
+            position: absolute;
+            background: white;
+            color: black;
+            border: 2px solid black;
+            border-radius: 8px;
+            padding: 4px;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0;
+            border-style: solid;
+            border-color: black transparent transparent transparent;
+        }
+    </style>
+</head>
+<body class="w-full h-full flex flex-col items-center justify-center bg-gray-900 select-none">
+
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="game-container" class="relative w-full h-full max-w-lg bg-[#1a1a1a] flex flex-col overflow-hidden shadow-2xl border-x-4 border-gray-800">
+
+        <!-- TOP HUD -->
+        <header class="h-16 bg-[#262626] border-b-4 border-black flex items-center justify-between px-4 z-20 shrink-0">
+            <div class="flex flex-col">
+                <span class="text-[10px] text-gray-400">STATUS</span>
+                <div class="flex gap-1" id="hearts-container">
+                    <!-- JS Injected Hearts -->
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <span class="text-[#fbbf24] text-xs">DIA</span>
+                <span id="day-display" class="text-xl text-white">1</span>
+            </div>
+
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] text-gray-400">OURO</span>
+                <div class="text-[#fbbf24] text-xl tracking-tighter">$<span id="gold-display">0</span></div>
+            </div>
+        </header>
+
+        <!-- GAME AREA -->
+        <main class="flex-1 relative flex flex-col">
+            
+            <!-- 1. CUSTOMER AREA (THE DUNGEON) -->
+            <div id="dungeon-zone" class="flex-1 bg-[#121212] relative overflow-hidden border-b-4 border-black">
+                <!-- Background Environment -->
+                <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#333 10%, transparent 10%); background-size: 20px 20px;"></div>
+                
+                <!-- Customers Spawn Here -->
+                <div id="monster-row" class="absolute bottom-2 left-0 w-full flex justify-center items-end gap-2 px-4 h-full pointer-events-none">
+                    <!-- Monsters Injected via JS -->
+                </div>
+            </div>
+
+            <!-- 2. WORKSTATION (THE BAR) -->
+            <div class="h-64 bg-[#262626] relative flex flex-col shrink-0">
+                
+                <!-- Counter Top Line -->
+                <div class="h-4 bg-[#3f3f46] border-y border-black w-full shadow-lg z-10"></div>
+
+                <div class="flex-1 flex items-center justify-between px-2 gap-2">
+                    
+                    <!-- TRASH -->
+                    <div id="trash-zone" class="w-20 h-24 pixel-box flex flex-col items-center justify-center cursor-pointer hover:bg-red-900/30 active:scale-95 transition-all group">
+                        <svg class="w-8 h-8 text-gray-500 group-hover:text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                        <span class="text-[8px] text-gray-400">DESPEJAR</span>
+                    </div>
+
+                    <!-- CAULDRON (The Mix Zone) -->
+                    <div id="cauldron-zone" class="relative w-32 h-32 mt-[-40px] z-20 group cursor-pointer transition-transform hover:scale-105">
+                        <!-- Cauldron SVG Graphic -->
+                        <svg class="w-full h-full drop-shadow-xl" viewBox="0 0 100 100" fill="none">
+                            <path d="M10 30 Q10 10 30 10 L70 10 Q90 10 90 30 L85 80 Q85 95 50 95 Q15 95 15 80 Z" fill="#1a1a1a" stroke="#4a4a4a" stroke-width="3"/>
+                            <path d="M15 30 L85 30" stroke="#333" stroke-width="2"/>
+                            <!-- Legs -->
+                            <path d="M25 90 L20 98 M75 90 L80 98" stroke="#4a4a4a" stroke-width="3"/>
+                        </svg>
+                        
+                        <!-- Liquid Mask -->
+                        <div class="absolute top-[30%] left-[20%] w-[60%] h-[55%] overflow-hidden rounded-b-3xl opacity-90 pointer-events-none">
+                            <div id="cauldron-liquid" class="w-full bg-purple-500 absolute bottom-0 transition-all duration-300" style="height: 0%"></div>
+                            <div id="cauldron-bubbles" class="absolute inset-0 hidden animate-pulse">
+                                <div class="absolute bottom-0 left-1/4 w-2 h-2 bg-white/50 rounded-full animate-[bounce_2s_infinite]"></div>
+                                <div class="absolute bottom-2 left-1/2 w-1 h-1 bg-white/50 rounded-full animate-[bounce_1.5s_infinite]"></div>
+                            </div>
+                        </div>
+
+                        <!-- Contents Icons (Stacked) -->
+                        <div id="cauldron-stack" class="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
+                            <!-- Icons added by JS -->
+                        </div>
+
+                        <div class="absolute -bottom-6 w-full text-center text-[10px] text-yellow-500 font-bold tracking-widest">MISTURAR</div>
+                    </div>
+
+                    <!-- DECK / HAND -->
+                    <div id="deck-zone" class="flex-1 h-28 ml-2 flex gap-2 items-center overflow-x-auto px-1">
+                        <!-- Ingredient Cards Go Here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- OVERLAYS -->
+    
+    <!-- START SCREEN -->
+    <div id="screen-start" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-center p-6">
+        <h1 class="text-4xl text-yellow-400 mb-4 tracking-widest drop-shadow-[4px_4px_0_rgba(100,50,0,1)]">ESPRESSO<br>DUNGEON</h1>
+        <p class="text-gray-400 text-xs mb-8 max-w-xs leading-5">
+            Monstros precisam de cafeína.<br>
+            Arraste ingredientes para o caldeirão.<br>
+            Arraste o caldeirão para o monstro.
+        </p>
+        <button onclick="Game.init()" class="pixel-btn px-8 py-4 text-white text-sm hover:text-yellow-300">
+            ABRIR TAVERNA
+        </button>
+    </div>
+
+    <!-- SHOP SCREEN -->
+    <div id="screen-shop" class="fixed inset-0 bg-[#1a1a1a] z-50 hidden flex flex-col p-4">
+        <h2 class="text-center text-2xl text-yellow-400 mb-2 border-b-2 border-gray-700 pb-2">MERCADOR NOTURNO</h2>
+        <p class="text-center text-[10px] text-gray-500 mb-6">Escolha uma melhoria para amanhã</p>
+        
+        <div id="shop-container" class="flex-1 flex flex-col gap-4 overflow-y-auto items-center justify-center">
+            <!-- Cards Generated Here -->
+        </div>
+        
+        <div class="mt-4 text-center">
+            <span class="text-xs text-gray-400">Saldo: $<span id="shop-gold">0</span></span>
+        </div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="screen-gameover" class="fixed inset-0 bg-red-900/90 z-50 hidden flex flex-col items-center justify-center text-center">
+        <div class="text-6xl mb-4">💀</div>
+        <h2 class="text-3xl text-white mb-2">VOCÊ MORREU</h2>
+        <p class="text-xs text-red-200 mb-8">Sua cafeteria foi destruída.</p>
+        <p class="text-sm text-white mb-8">Dias: <span id="final-score">0</span></p>
+        <button onclick="location.reload()" class="pixel-btn px-6 py-3 text-white text-xs">
+            TENTAR NOVAMENTE
+        </button>
+    </div>
+
+    <!-- AUDIO SYSTEM (Synthesizer, no external files) -->
+    <script>
+        const AudioSys = {
+            ctx: null,
+            init: function() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            },
+            playTone: function(freq, type, duration, vol = 0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            sfx: {
+                pickup: () => AudioSys.playTone(400, 'triangle', 0.1, 0.05),
+                drop: () => AudioSys.playTone(300, 'sine', 0.1, 0.05),
+                trash: () => AudioSys.playTone(150, 'sawtooth', 0.2, 0.05),
+                mix: () => {
+                    AudioSys.playTone(500, 'sine', 0.1, 0.05);
+                    setTimeout(() => AudioSys.playTone(600, 'sine', 0.1, 0.05), 50);
+                },
+                serve: () => {
+                    AudioSys.playTone(800, 'square', 0.1, 0.1);
+                    setTimeout(() => AudioSys.playTone(1200, 'square', 0.3, 0.1), 100);
+                },
+                error: () => {
+                    AudioSys.playTone(150, 'sawtooth', 0.3, 0.2);
+                    setTimeout(() => AudioSys.playTone(100, 'sawtooth', 0.3, 0.2), 100);
+                }
+            }
+        };
+    </script>
+
+    <!-- ASSETS (SVGs as strings for clean code) -->
+    <script>
+        const Assets = {
+            ingredients: {
+                'coffee': { color: '#3f2e27', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2,21H20V19H2M20,8H18V5H20M20,3H4V13A4,4 0 0,0 8,17H14A4,4 0 0,0 18,13V10H20A2,2 0 0,0 22,8V5C22,3.89 21.1,3 20,3Z" /></svg>` },
+                'milk': { color: '#f3f4f6', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 2h16l-2 4v16H6V6L4 2zm3 6v12h10V8H7z" /></svg>` },
+                'sugar': { color: '#ffffff', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2v18h12V2H6zm6 12l-2-2 2-2 2 2-2 2z" /></svg>` },
+                'slime_goo': { color: '#84cc16', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 2 4 6 4 10v10h16V10c0-4-4-8-8-8z" /></svg>` },
+                'blood': { color: '#dc2626', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0-8 6-8 13 0 4.4 3.6 8 8 8s8-3.6 8-8c0-7-8-13-8-13z" /></svg>` },
+                'ice': { color: '#a5f3fc', icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 6l8 4 8-4-8-4zm0 6l-8 4v8l8 4 8-4v-8l-8-4z" /></svg>` }
+            },
+            monsters: [
+                // Skeleton
+                `<svg class="w-full h-full text-gray-300" viewBox="0 0 100 100" fill="currentColor">
+                    <rect x="35" y="20" width="30" height="25" rx="5" />
+                    <rect x="40" y="25" width="8" height="8" fill="#111" />
+                    <rect x="52" y="25" width="8" height="8" fill="#111" />
+                    <rect x="42" y="38" width="4" height="6" fill="#111" />
+                    <rect x="48" y="38" width="4" height="6" fill="#111" />
+                    <rect x="54" y="38" width="4" height="6" fill="#111" />
+                    <rect x="45" y="45" width="10" height="25" />
+                    <path d="M30 50 L45 50 M55 50 L70 50" stroke="currentColor" stroke-width="4" />
+                </svg>`,
+                // Slime
+                `<svg class="w-full h-full text-green-500" viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M20 90 Q10 90 10 70 Q10 30 50 30 Q90 30 90 70 Q90 90 80 90 Z" />
+                    <circle cx="35" cy="55" r="5" fill="#000" />
+                    <circle cx="65" cy="55" r="5" fill="#000" />
+                    <path d="M40 70 Q50 75 60 70" stroke="#000" stroke-width="3" fill="none" />
+                </svg>`,
+                // Bat
+                `<svg class="w-full h-full text-purple-500" viewBox="0 0 100 100" fill="currentColor">
+                     <path d="M10 40 Q30 10 50 40 Q70 10 90 40 L80 80 L50 70 L20 80 Z" />
+                     <circle cx="40" cy="50" r="3" fill="#fff" />
+                     <circle cx="60" cy="50" r="3" fill="#fff" />
+                     <path d="M45 60 L55 60" stroke="#fff" stroke-width="2" />
+                </svg>`,
+                 // Orc
+                 `<svg class="w-full h-full text-green-700" viewBox="0 0 100 100" fill="currentColor">
+                    <rect x="25" y="25" width="50" height="50" rx="10" />
+                    <path d="M25 40 L15 30 L25 50 Z" />
+                    <path d="M75 40 L85 30 L75 50 Z" />
+                    <rect x="35" y="40" width="8" height="4" fill="#000" />
+                    <rect x="57" y="40" width="8" height="4" fill="#000" />
+                    <path d="M40 60 L45 55 L55 55 L60 60" stroke="#000" stroke-width="2" fill="none" />
+                    <rect x="38" y="60" width="4" height="8" fill="#fff" />
+                    <rect x="58" y="60" width="4" height="8" fill="#fff" />
+                </svg>`
+            ]
+        };
+    </script>
+
+    <!-- LOGIC -->
+    <script>
+        const Game = {
+            state: {
+                day: 1,
+                gold: 0,
+                lives: 3,
+                deck: ['coffee', 'milk', 'sugar'],
+                monsters: [],
+                cauldron: [],
+                isDragging: false,
+                dragType: null, // 'ingredient' or 'cauldron'
+                dragData: null,
+                spawnRate: 4000
+            },
+            
+            elements: {
+                dungeon: document.getElementById('dungeon-zone'),
+                monsterRow: document.getElementById('monster-row'),
+                cauldronZone: document.getElementById('cauldron-zone'),
+                cauldronStack: document.getElementById('cauldron-stack'),
+                cauldronLiquid: document.getElementById('cauldron-liquid'),
+                trash: document.getElementById('trash-zone'),
+                deck: document.getElementById('deck-zone'),
+                hearts: document.getElementById('hearts-container'),
+                day: document.getElementById('day-display'),
+                gold: document.getElementById('gold-display')
+            },
+
+            init: function() {
+                AudioSys.init();
+                document.getElementById('screen-start').classList.add('hidden');
+                this.startDay();
+                this.bindInput();
+                this.loop();
+            },
+
+            startDay: function() {
+                this.state.monsters = [];
+                this.state.cauldron = [];
+                this.elements.monsterRow.innerHTML = '';
+                this.updateUI();
+                this.renderDeck();
+                this.updateCauldron();
+                
+                this.lastSpawn = Date.now();
+                this.gameActive = true;
+                
+                // Difficulty Scaling
+                this.state.spawnRate = Math.max(1500, 4500 - (this.state.day * 300));
+            },
+
+            renderDeck: function() {
+                this.elements.deck.innerHTML = '';
+                this.state.deck.forEach(ingKey => {
+                    const ing = Assets.ingredients[ingKey];
+                    const card = document.createElement('div');
+                    card.className = 'card-ingredient w-16 h-20 bg-[#2d2a2e] border-2 border-[#5c5c5c] rounded flex flex-col items-center justify-center shrink-0 hover:-translate-y-2 hover:border-white shadow-md relative';
+                    card.dataset.ing = ingKey;
+                    
+                    card.innerHTML = `
+                        <div class="w-8 h-8 text-[#e5e7eb] pointer-events-none">${ing.icon}</div>
+                        <div class="mt-2 text-[8px] uppercase font-bold text-gray-400 pointer-events-none">${ingKey}</div>
+                    `;
+                    
+                    // Mouse Down handler for dragging
+                    card.onmousedown = (e) => this.startDrag(e, 'ingredient', ingKey);
+                    card.ontouchstart = (e) => this.startDrag(e, 'ingredient', ingKey);
+                    
+                    this.elements.deck.appendChild(card);
+                });
+            },
+
+            spawnMonster: function() {
+                if (this.state.monsters.length >= 3) return;
+
+                const id = Date.now();
+                const artIndex = Math.floor(Math.random() * Assets.monsters.length);
+                const art = Assets.monsters[artIndex];
+                
+                // Generate Recipe
+                const complexity = Math.min(3, 1 + Math.floor(this.state.day / 2));
+                let recipe = [];
+                
+                // Always start with a base (coffee or milk if in deck)
+                recipe.push('coffee');
+                
+                // Add extras
+                for(let i=1; i<complexity; i++) {
+                    const available = this.state.deck.filter(k => k !== 'coffee');
+                    if(available.length > 0) {
+                        recipe.push(available[Math.floor(Math.random() * available.length)]);
+                    }
+                }
+                
+                // Sort for comparison logic later (though order doesn't matter for gameplay)
+                recipe.sort();
+
+                const monsterObj = {
+                    id: id,
+                    art: art,
+                    recipe: recipe,
+                    patience: 100,
+                    maxPatience: 100,
+                    decay: 0.1 + (this.state.day * 0.02)
+                };
+
+                this.state.monsters.push(monsterObj);
+                this.renderMonster(monsterObj);
+            },
+
+            renderMonster: function(m) {
+                const el = document.createElement('div');
+                el.id = `mon-${m.id}`;
+                el.className = 'monster-sprite relative w-32 h-40 flex flex-col items-center justify-end pointer-events-auto transition-transform duration-200';
+                
+                // Recipe Bubble
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble flex gap-1 shadow-lg';
+                m.recipe.forEach(r => {
+                    const iDiv = document.createElement('div');
+                    iDiv.className = 'w-4 h-4 text-black';
+                    iDiv.innerHTML = Assets.ingredients[r].icon;
+                    bubble.appendChild(iDiv);
+                });
+
+                // Monster SVG
+                const svgContainer = document.createElement('div');
+                svgContainer.className = 'w-24 h-24 drop-shadow-lg';
+                svgContainer.innerHTML = m.art;
+
+                // Patience Bar
+                const barContainer = document.createElement('div');
+                barContainer.className = 'w-full h-2 bg-black border border-gray-600 mt-1';
+                const bar = document.createElement('div');
+                bar.id = `bar-${m.id}`;
+                bar.className = 'h-full bg-green-500 transition-all';
+                bar.style.width = '100%';
+                barContainer.appendChild(bar);
+
+                el.appendChild(bubble);
+                el.appendChild(svgContainer);
+                el.appendChild(barContainer);
+
+                this.elements.monsterRow.appendChild(el);
+                
+                // Pop in animation
+                el.style.transform = 'scale(0)';
+                setTimeout(() => el.style.transform = 'scale(1)', 50);
+            },
+
+            update: function() {
+                if(!this.gameActive) return;
+
+                // Spawning
+                if (Date.now() - this.lastSpawn > this.state.spawnRate) {
+                    this.spawnMonster();
+                    this.lastSpawn = Date.now();
+                }
+
+                // Monster Logic
+                this.state.monsters.forEach((m, idx) => {
+                    m.patience -= m.decay;
+                    
+                    const el = document.getElementById(`mon-${m.id}`);
+                    const bar = document.getElementById(`bar-${m.id}`);
+
+                    if (el && bar) {
+                        bar.style.width = `${m.patience}%`;
+                        
+                        // Color states
+                        if (m.patience < 50) bar.className = 'h-full bg-yellow-500';
+                        if (m.patience < 25) {
+                            bar.className = 'h-full bg-red-600';
+                            el.classList.add('damage-shake'); // Angry shaking
+                        } else {
+                            el.classList.remove('damage-shake');
+                        }
+                    }
+
+                    if (m.patience <= 0) {
+                        this.removeMonster(m.id, false);
+                    }
+                });
+            },
+
+            removeMonster: function(id, success) {
+                const idx = this.state.monsters.findIndex(m => m.id === id);
+                if (idx === -1) return;
+
+                const el = document.getElementById(`mon-${id}`);
+                const rect = el.getBoundingClientRect();
+                
+                if (success) {
+                    this.state.gold += 10;
+                    this.showFloatText(rect.left, rect.top, "+$10", "text-yellow-400");
+                    AudioSys.sfx.serve();
+                } else {
+                    this.state.lives--;
+                    this.showFloatText(rect.left, rect.top, "MISS!", "text-red-500");
+                    AudioSys.sfx.error();
+                    document.body.classList.add('bg-red-900');
+                    setTimeout(() => document.body.classList.remove('bg-red-900'), 100);
+                }
+
+                el.style.transform = 'scale(0)';
+                setTimeout(() => el.remove(), 200);
+                
+                this.state.monsters.splice(idx, 1);
+                this.updateUI();
+
+                if (this.state.lives <= 0) this.gameOver();
+                
+                // End of day logic could go here if we tracked total served
+                if (this.state.gold >= 50 * this.state.day && this.state.monsters.length === 0) {
+                    this.endDay();
+                }
+            },
+
+            updateUI: function() {
+                this.elements.hearts.innerHTML = '';
+                for(let i=0; i<3; i++) {
+                    const h = document.createElement('span');
+                    h.className = i < this.state.lives ? 'text-red-500' : 'text-gray-700';
+                    h.textContent = '❤';
+                    this.elements.hearts.appendChild(h);
+                }
+                this.elements.day.textContent = this.state.day;
+                this.elements.gold.textContent = this.state.gold;
+            },
+
+            updateCauldron: function() {
+                // Stack icons
+                this.elements.cauldronStack.innerHTML = '';
+                this.state.cauldron.forEach((ing, i) => {
+                    const icon = document.createElement('div');
+                    icon.innerHTML = Assets.ingredients[ing].icon;
+                    icon.className = 'w-6 h-6 absolute text-white drop-shadow-md';
+                    icon.style.transform = `translate(${Math.sin(i)*10}px, ${Math.cos(i)*5}px)`;
+                    this.elements.cauldronStack.appendChild(icon);
+                });
+
+                // Liquid Level & Color
+                const count = this.state.cauldron.length;
+                this.elements.cauldronLiquid.style.height = `${Math.min(count * 20, 80)}%`;
+                
+                if (count > 0) {
+                    // Mix colors (simple approach: take last added)
+                    const last = Assets.ingredients[this.state.cauldron[count-1]];
+                    this.elements.cauldronLiquid.style.backgroundColor = last.color;
+                    document.getElementById('cauldron-bubbles').classList.remove('hidden');
+                } else {
+                    document.getElementById('cauldron-bubbles').classList.add('hidden');
+                }
+            },
+
+            // --- DRAG & DROP SYSTEM ---
+
+            startDrag: function(e, type, data) {
+                if(!this.gameActive) return;
+                e.preventDefault();
+                
+                this.state.isDragging = true;
+                this.state.dragType = type;
+                this.state.dragData = data;
+
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                // Create Ghost
+                const ghost = document.createElement('div');
+                ghost.id = 'drag-ghost';
+                ghost.className = 'ghost-item';
+                
+                if (type === 'ingredient') {
+                    ghost.innerHTML = `<div class="w-12 h-12 text-white bg-black rounded-full p-2 border border-white">${Assets.ingredients[data].icon}</div>`;
+                    AudioSys.sfx.pickup();
+                } else {
+                    ghost.innerHTML = `<div class="text-4xl">🥘</div>`; // Cauldron emoji just for ghost or use SVG
+                    this.elements.cauldronZone.style.opacity = '0.5';
+                    AudioSys.sfx.pickup();
+                }
+                
+                ghost.style.left = clientX + 'px';
+                ghost.style.top = clientY + 'px';
+                document.body.appendChild(ghost);
+
+                // Add move/up listeners
+                const moveHandler = (ev) => this.onDragMove(ev);
+                const endHandler = (ev) => {
+                    this.onDragEnd(ev);
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('touchmove', moveHandler);
+                    document.removeEventListener('mouseup', endHandler);
+                    document.removeEventListener('touchend', endHandler);
+                };
+
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('touchmove', moveHandler, { passive: false });
+                document.addEventListener('mouseup', endHandler);
+                document.addEventListener('touchend', endHandler);
+            },
+
+            onDragMove: function(e) {
+                if (!this.state.isDragging) return;
+                e.preventDefault();
+                const ghost = document.getElementById('drag-ghost');
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                ghost.style.left = clientX + 'px';
+                ghost.style.top = clientY + 'px';
+            },
+
+            onDragEnd: function(e) {
+                this.state.isDragging = false;
+                const ghost = document.getElementById('drag-ghost');
+                if(ghost) ghost.remove();
+                this.elements.cauldronZone.style.opacity = '1';
+
+                const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+                const elUnder = document.elementFromPoint(clientX, clientY);
+
+                if (this.state.dragType === 'ingredient') {
+                    // Check drop on Cauldron
+                    if (elUnder && (elUnder.closest('#cauldron-zone') || elUnder.id === 'cauldron-zone')) {
+                        if (this.state.cauldron.length < 5) {
+                            this.state.cauldron.push(this.state.dragData);
+                            this.updateCauldron();
+                            AudioSys.sfx.drop();
+                        }
+                    }
+                } else if (this.state.dragType === 'cauldron') {
+                    // Check drop on Monster or Trash
+                    const trash = elUnder.closest('#trash-zone');
+                    const monster = elUnder.closest('.monster-sprite'); // Simplified selector
+
+                    if (trash) {
+                        this.state.cauldron = [];
+                        this.updateCauldron();
+                        AudioSys.sfx.trash();
+                        this.showFloatText(clientX, clientY, "LIXO", "text-gray-500");
+                    } else if (monster) {
+                        const monId = parseInt(monster.id.replace('mon-', ''));
+                        this.attemptServe(monId);
+                    }
+                }
+            },
+
+            attemptServe: function(monId) {
+                const mon = this.state.monsters.find(m => m.id === monId);
+                if (!mon) return;
+
+                // Check recipe
+                const made = [...this.state.cauldron].sort().join(',');
+                const wanted = [...mon.recipe].sort().join(',');
+
+                if (made === wanted) {
+                    this.removeMonster(monId, true);
+                    this.state.cauldron = [];
+                    this.updateCauldron();
+                } else {
+                    AudioSys.sfx.error();
+                    this.showFloatText(
+                        document.getElementById(`mon-${monId}`).getBoundingClientRect().left,
+                        document.getElementById(`mon-${monId}`).getBoundingClientRect().top,
+                        "ERRADO!", "text-red-500"
+                    );
+                    mon.patience -= 30; // Punishment
+                }
+            },
+
+            bindInput: function() {
+                // Cauldron Drag Trigger
+                this.elements.cauldronZone.onmousedown = (e) => {
+                    if (this.state.cauldron.length > 0) this.startDrag(e, 'cauldron', null);
+                };
+                this.elements.cauldronZone.ontouchstart = (e) => {
+                    if (this.state.cauldron.length > 0) this.startDrag(e, 'cauldron', null);
+                };
+                
+                // Trash Click
+                this.elements.trash.onclick = () => {
+                    if (this.state.cauldron.length > 0) {
+                        this.state.cauldron = [];
+                        this.updateCauldron();
+                        AudioSys.sfx.trash();
+                    }
+                };
+            },
+
+            showFloatText: function(x, y, text, colorClass) {
+                const el = document.createElement('div');
+                el.className = `float-text text-xl font-bold ${colorClass}`;
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.textContent = text;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            },
+            
+            // Loop
+            loop: function() {
+                requestAnimationFrame(() => this.loop());
+                this.update();
+            },
+
+            // Meta Game
+            endDay: function() {
+                this.gameActive = false;
+                document.getElementById('screen-shop').classList.remove('hidden');
+                document.getElementById('screen-shop').classList.add('flex');
+                document.getElementById('shop-gold').textContent = this.state.gold;
+                this.generateShop();
+            },
+
+            generateShop: function() {
+                const container = document.getElementById('shop-container');
+                container.innerHTML = '';
+                
+                const items = [
+                    { name: 'Novo Ingrediente: Gelo', cost: 0, type: 'ing', id: 'ice' },
+                    { name: 'Novo Ingrediente: Slime', cost: 0, type: 'ing', id: 'slime_goo' },
+                    { name: 'Poção de Cura (+1 Vida)', cost: 50, type: 'heal' },
+                    { name: 'Suborno (Pular Dia)', cost: 100, type: 'skip' }
+                ];
+
+                items.forEach(item => {
+                    // Filter if already have ingredient
+                    if (item.type === 'ing' && this.state.deck.includes(item.id)) return;
+
+                    const btn = document.createElement('button');
+                    btn.className = `pixel-btn w-full p-4 flex justify-between items-center ${this.state.gold < item.cost ? 'opacity-50 grayscale' : ''}`;
+                    btn.innerHTML = `<span>${item.name}</span> <span class="text-yellow-400">$${item.cost}</span>`;
+                    
+                    if (this.state.gold >= item.cost) {
+                        btn.onclick = () => {
+                            this.state.gold -= item.cost;
+                            if (item.type === 'ing') this.state.deck.push(item.id);
+                            if (item.type === 'heal') this.state.lives++;
+                            
+                            this.closeShop();
+                        };
+                    }
+                    container.appendChild(btn);
+                });
+                
+                // Continue button
+                const nextBtn = document.createElement('button');
+                nextBtn.className = "pixel-btn w-full p-4 mt-4 bg-green-800 text-white";
+                nextBtn.textContent = "PRÓXIMO DIA >>";
+                nextBtn.onclick = () => this.closeShop();
+                container.appendChild(nextBtn);
+            },
+
+            closeShop: function() {
+                document.getElementById('screen-shop').classList.add('hidden');
+                document.getElementById('screen-shop').classList.remove('flex');
+                this.state.day++;
+                this.startDay();
+            },
+
+            gameOver: function() {
+                this.gameActive = false;
+                document.getElementById('screen-gameover').classList.remove('hidden');
+                document.getElementById('screen-gameover').classList.add('flex');
+                document.getElementById('final-score').textContent = this.state.day;
+            }
+        };
+
+    </script>
+</body>
+</html>
