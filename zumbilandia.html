@@ -978,8 +978,8 @@
             const hero = state.entities.find(e => ['rick', 'michonne', 'daryl', 'carol'].includes(e.type));
             if (hero) playerPos = hero.mesh.position;
 
-            const minDistance = 1200; // Distância mínima (garante que está no escuro/nevoa)
-            const maxDistance = 1800; // Distância máxima
+            const minDistance = 300; // Distância mínima (borda do mapa)
+            const maxDistance = 450; // Distância máxima
 
             // 1. Sorteia um ângulo qualquer (360º)
             const angle = Math.random() * Math.PI * 2;
@@ -1451,6 +1451,13 @@
             const t = state.timeOfDay;
             const isNight = t > 0.75 || t < 0.2;
 
+            // [FIX] Update Timer UI
+            const timeLeft = Math.max(0, Math.ceil((state.nextWaveTime - Date.now()) / 1000));
+            document.getElementById('ui-timer').innerText = `${timeLeft}s`;
+            // Update Bar
+            const progress = Math.max(0, Math.min(1, timeLeft / WAVE_TIME));
+            document.getElementById('timer-bar').style.width = `${progress * 100}%`;
+
             // Horda Noturna
             if (isNight && !state.isHorde) {
                 if (state.nextWaveTime - Date.now() <= 0 && !state.hordeNotificationShown) {
@@ -1463,7 +1470,7 @@
                     state.hordeInterval = setInterval(() => {
                         // [NEW] Optimization: Hard Limit
                         const zombieCount = state.entities.filter(e => e.type.includes('zombie')).length;
-                        if (zombieCount >= 150) return;
+                        if (zombieCount >= 200) return; // [FIX] Increased Limit (was 150)
 
                         // [NEW] Evolution System
                         let type = 'zombie'; // Default Green
@@ -1483,7 +1490,7 @@
                         }
 
                         spawnHorde(1, type); // Call the new spawnHorde function
-                    }, 1000 - (Math.min(state.wave, 15) * 50));
+                    }, 1000 - (Math.min(state.wave, 20) * 45)); // [FIX] Faster Spawn Rate Cap
                 }
             } else if (!isNight && state.isHorde) {
                 state.isHorde = false;
@@ -1492,6 +1499,7 @@
                 document.body.classList.remove("horde-active");
                 showBadge("Amanhecer", "Estamos seguros... por enquanto.", "fa-sun", "green");
                 state.wave++;
+                state.nextWaveTime = Date.now() + WAVE_TIME * 1000; // [FIX] Reset Timer
                 document.getElementById('ui-wave').innerText = state.wave;
 
                 // Boss Removed as per request

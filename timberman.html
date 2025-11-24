@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Timber Lite: Roguelite Chopper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            touch-action: none;
+            background-color: #2d3436;
+            color: white;
+            user-select: none;
+        }
+
+        #game-canvas {
+            display: block;
+            margin: 0 auto;
+            image-rendering: pixelated;
+        }
+
+        .pixel-text {
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* UI Overlay Styles */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .card {
+            background: #fff;
+            color: #333;
+            border: 4px solid #555;
+            padding: 10px;
+            margin: 5px;
+            width: 90%;
+            max-width: 300px;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+            border-color: #f1c40f;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #d63031;
+            margin-bottom: 5px;
+        }
+
+        .card-desc {
+            font-size: 0.6rem;
+            color: #636e72;
+        }
+
+        .btn {
+            background: #0984e3;
+            border: 4px solid #000;
+            padding: 15px 30px;
+            font-family: inherit;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 4px 4px 0px #000;
+        }
+
+        .btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        .btn-green {
+            background-color: #00b894;
+        }
+
+        .btn-red {
+            background-color: #d63031;
+        }
+
+        .btn-purple {
+            background-color: #6c5ce7;
+        }
+
+        .btn:disabled {
+            background-color: #636e72;
+            cursor: not-allowed;
+        }
+
+        /* Biome Colors (CSS vars for reference, applied in Canvas) */
+        :root {
+            --forest-bg: #81ecec;
+            --desert-bg: #ffeaa7;
+            --snow-bg: #dfe6e9;
+            --hell-bg: #ff7675;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            z-index: 5;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 20px;
+            background: #2d3436;
+            border: 2px solid #fff;
+            margin-top: 5px;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+        <div style="width: 45%;">
+            <div>STAMINA</div>
+            <div class="bar-container">
+                <div id="stamina-bar" class="bar-fill" style="background: #e17055; width: 100%;"></div>
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <div id="score-display" class="text-xl text-yellow-400">0m</div>
+            <div id="gold-display" class="text-yellow-200 text-xs">💰 0</div>
+        </div>
+        <div style="width: 45%; text-align: right;">
+            <div>XP (Lvl <span id="level-display">1</span>)</div>
+            <div class="bar-container">
+                <div id="xp-bar" class="bar-fill" style="background: #00cec9; width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CANVAS -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- MAIN MENU -->
+    <div id="menu-screen" class="overlay">
+        <h1 class="text-4xl text-yellow-400 mb-4 pixel-text text-center">TIMBER<br>LITE</h1>
+        <p class="text-xs mb-8 text-gray-400">Sobreviva. Evolua. Corte.</p>
+
+        <div class="bg-gray-800 p-4 border-4 border-white mb-4 w-11/12 max-w-md text-center">
+            <h2 class="text-sm mb-2 text-green-400">SELECIONE A CLASSE</h2>
+            <div class="flex justify-between items-center mb-2">
+                <button id="prev-class" class="text-2xl p-2">&lt;</button>
+                <div id="class-info">
+                    <div id="class-name" class="text-xl text-yellow-300">LENHADOR</div>
+                    <div id="class-desc" class="text-xs text-gray-300 mt-2 h-12">Balanceado. Bom para iniciantes.</div>
+                    <div id="class-cost" class="text-xs text-red-400 mt-1 hidden">Custo: 500 Ouro</div>
+                </div>
+                <button id="next-class" class="text-2xl p-2">&gt;</button>
+            </div>
+            <button id="buy-class-btn" class="btn btn-purple hidden text-xs w-full mb-2">DESBLOQUEAR</button>
+        </div>
+
+        <div class="mb-4 text-center">
+            <div class="text-yellow-400 mb-2">META-PROGRESSÃO</div>
+            <div class="text-xs text-white">Ouro Total: <span id="meta-gold">0</span></div>
+            <button id="upgrade-stamina-btn" class="btn btn-sm text-xs py-2 px-4 mt-2">Max Stamina +10 (200g)</button>
+        </div>
+
+        <button id="start-btn" class="btn btn-green animate-bounce">JOGAR</button>
+    </div>
+
+    <!-- LEVEL UP MODAL -->
+    <div id="levelup-screen" class="overlay hidden">
+        <h2 class="text-2xl text-yellow-400 mb-2 pixel-text">LEVEL UP!</h2>
+        <p class="text-xs mb-4">Escolha uma melhoria:</p>
+        <div id="cards-container" class="flex flex-col items-center w-full">
+            <!-- Cards injected via JS -->
+        </div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="gameover-screen" class="overlay hidden">
+        <h2 class="text-3xl text-red-500 mb-4 pixel-text">MORT O</h2>
+        <p class="mb-2">Distância: <span id="final-score" class="text-yellow-400">0</span>m</p>
+        <p class="mb-8">Ouro Ganho: <span id="final-gold" class="text-yellow-400">0</span></p>
+        <button id="restart-btn" class="btn">MENU PRINCIPAL</button>
+    </div>
+
+    <script>
+        /** * CONSTANTES E CONFIGURAÇÕES
+         */
+        const CANVAS = document.getElementById('game-canvas');
+        const CTX = CANVAS.getContext('2d');
+
+        // Configuração de Tela
+        function resizeCanvas() {
+            CANVAS.width = window.innerWidth;
+            CANVAS.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Dados do Jogo
+        const CLASSES = [
+            { id: 'lumberjack', name: 'LENHADOR', desc: 'Balanceado. A escolha clássica.', cost: 0, color: '#e67e22', stats: { decayMod: 1, damage: 1, luck: 0 } },
+            { id: 'ninja', name: 'NINJA', desc: 'Stamina cai devagar, mas fraco contra Ferro.', cost: 500, color: '#2d3436', stats: { decayMod: 0.6, damage: 0.5, luck: 0.1 } },
+            { id: 'mage', name: 'MAGO', desc: 'Chance de raio (quebra 3 blocos).', cost: 1000, color: '#9b59b6', stats: { decayMod: 1.1, damage: 1, luck: 0, magic: true } },
+            { id: 'vampire', name: 'VAMPIRO', desc: 'Perde vida rápido. Ganha vida ao bater.', cost: 2000, color: '#c0392b', stats: { decayMod: 2.5, damage: 1, vampire: true } }
+        ];
+
+        const UPGRADES = [
+            { id: 'axe_sharp', name: 'Machado Afiado', desc: '+20% de Dano em troncos duros', type: 'passive', apply: (s) => s.damageMult += 0.2 },
+            { id: 'stamina_up', name: 'Pulmões de Aço', desc: 'Recupera +10% de stamina por batida', type: 'passive', apply: (s) => s.staminaGainMult += 0.1 },
+            { id: 'lucky_clover', name: 'Trevo da Sorte', desc: '+Chance de Ouro e Críticos', type: 'passive', apply: (s) => s.luck += 0.2 },
+            { id: 'fire_axe', name: 'Machado de Fogo', desc: 'Chance de queimar o bloco acima', type: 'passive', apply: (s) => s.hasFireAxe = true },
+            { id: 'time_freeze', name: 'Time Freeze', desc: 'Para o tempo por 2s a cada 50 hits', type: 'passive', apply: (s) => s.hasTimeFreeze = true },
+            { id: 'midas_touch', name: 'Toque de Midas', desc: '+50% Ouro ganho', type: 'passive', apply: (s) => s.goldMult += 0.5 },
+            { id: 'berserk', name: 'Berserker', desc: 'Menos stamina = Mais XP', type: 'passive', apply: (s) => s.hasBerserk = true }
+        ];
+
+        const BIOMES = [
+            { score: 0, name: 'Floresta', bg: '#81ecec', trunk: '#795548' },
+            { score: 100, name: 'Deserto', bg: '#ffeaa7', trunk: '#d35400' },
+            { score: 250, name: 'Neve', bg: '#dfe6e9', trunk: '#2c3e50' },
+            { score: 500, name: 'Inferno', bg: '#ff7675', trunk: '#2d3436' }
+        ];
+
+        /**
+         * STATE MANAGEMENT
+         */
+        let gameState = {
+            screen: 'MENU', // MENU, PLAYING, PAUSED, LEVEL_UP, GAMEOVER
+            player: {
+                classId: 'lumberjack',
+                side: -1, // -1 Left, 1 Right
+                state: 'idle', // idle, chop
+                animTimer: 0
+            },
+            stats: {
+                maxStamina: 100,
+                stamina: 100,
+                score: 0,
+                xp: 0,
+                level: 1,
+                gold: 0,
+                xpToNext: 20
+            },
+            modifiers: {
+                damageMult: 1,
+                staminaGainMult: 1,
+                luck: 0,
+                goldMult: 1,
+                hasFireAxe: false,
+                hasTimeFreeze: false,
+                hasBerserk: false,
+                freezeTimer: 0
+            },
+            tree: [], // Array of segments
+            particles: [],
+            popups: [],
+            shake: 0,
+            meta: {
+                gold: parseInt(localStorage.getItem('tl_gold') || 0),
+                unlocked: JSON.parse(localStorage.getItem('tl_unlocked') || '["lumberjack"]'),
+                staminaLvl: parseInt(localStorage.getItem('tl_stamina_lvl') || 0)
+            },
+            lastTime: 0
+        };
+
+        // Audio Placeholder (Web Audio API simples)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            if (type === 'chop') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'iron') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'levelup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        /**
+         * GAME LOGIC
+         */
+
+        function saveMeta() {
+            localStorage.setItem('tl_gold', gameState.meta.gold);
+            localStorage.setItem('tl_unlocked', JSON.stringify(gameState.meta.unlocked));
+            localStorage.setItem('tl_stamina_lvl', gameState.meta.staminaLvl);
+        }
+
+        function initGame() {
+            const classStats = CLASSES.find(c => c.id === gameState.player.classId).stats;
+
+            gameState.stats.score = 0;
+            gameState.stats.level = 1;
+            gameState.stats.xp = 0;
+            gameState.stats.xpToNext = 20;
+            gameState.stats.gold = 0;
+            gameState.stats.maxStamina = 100 + (gameState.meta.staminaLvl * 10);
+            gameState.stats.stamina = gameState.stats.maxStamina;
+
+            gameState.modifiers = {
+                damageMult: classStats.damage || 1,
+                decayMod: classStats.decayMod || 1,
+                staminaGainMult: 1,
+                luck: classStats.luck || 0,
+                goldMult: 1,
+                hasFireAxe: false,
+                hasTimeFreeze: false,
+                hasBerserk: false,
+                magic: classStats.magic || false,
+                vampire: classStats.vampire || false,
+                freezeTimer: 0
+            };
+
+            gameState.tree = [];
+            for (let i = 0; i < 10; i++) addTreeSegment(false);
+
+            gameState.screen = 'PLAYING';
+            gameState.particles = [];
+            gameState.popups = [];
+
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            updateHUD();
+            loop();
+        }
+
+        function addTreeSegment(allowBranch = true) {
+            // Difficulty curve
+            const score = gameState.stats.score;
+            let ironChance = Math.min(0.3, score * 0.001);
+            let goldChance = 0.05 + gameState.modifiers.luck * 0.1;
+
+            let type = 'normal';
+            let hp = 1;
+            let reward = 10; // xp
+
+            if (score > 20 && Math.random() < ironChance) {
+                type = 'iron';
+                hp = 2; // Tronco de ferro precisa de 2 hits (exceto para upgrades)
+                reward = 20;
+            } else if (Math.random() < goldChance) {
+                type = 'gold';
+                reward = 50;
+            }
+
+            let branch = 'none';
+            if (allowBranch) {
+                // Ensure no impossible patterns (though standard timberman is just random side)
+                // We'll avoid generating branch immediately after a branch on the same side is simpler logic
+                // Standard random:
+                const r = Math.random();
+                if (r < 0.25) branch = 'left';
+                else if (r > 0.75) branch = 'right';
+            }
+
+            // O primeiro segmento nunca tem galho para o player começar seguro
+            if (gameState.tree.length === 0) branch = 'none';
+
+            gameState.tree.push({ type, hp, branch, reward, maxHp: hp });
+        }
+
+        function chop(side) {
+            if (gameState.screen !== 'PLAYING') return;
+
+            // Move Player
+            gameState.player.side = side;
+            gameState.player.state = 'chop';
+            gameState.player.animTimer = 5;
+
+            const currentLog = gameState.tree[0];
+            const classStats = CLASSES.find(c => c.id === gameState.player.classId).stats;
+
+            // Check Death by Branch (Instant)
+            // No Timberman, se você bate e tem um galho EM CIMA de você descendo, você morre.
+            // Mas aqui, vamos verificar o galho do bloco ATUAL (que vai descer) ou o próximo?
+            // Lógica Timberman: Se o bloco atual tem galho na Esq e eu bato na Esq -> Morte? Não, pq eu bato "no tronco".
+            // A morte acontece se o galho do bloco DE CIMA cair na minha cabeça.
+
+            // Verificação de colisão PRÉ-HIT: Se eu estou na Esquerda, e o bloco de cima (index 1) tem galho na Esquerda -> MORTE.
+            const nextLog = gameState.tree[1];
+            if (nextLog && nextLog.branch === (side === -1 ? 'left' : 'right')) {
+                gameOver();
+                return;
+            }
+
+            // Process Damage
+            let damage = 1 * gameState.modifiers.damageMult;
+
+            // Ninja penalty vs Iron (Hardcoded mechanic logic)
+            if (gameState.player.classId === 'ninja' && currentLog.type === 'iron') {
+                damage = 0.5; // Precisa de 2 hits a mais que normal
+            }
+
+            currentLog.hp -= damage;
+
+            // Visuals
+            playSound(currentLog.type === 'iron' && currentLog.hp > 0 ? 'iron' : 'chop');
+            spawnParticles(side, currentLog.type);
+            addPopup(damage >= 1 ? "" : "CLANK", 0, -50, '#fff');
+
+            // Vampire Logic: Heal on hit
+            if (gameState.modifiers.vampire) {
+                gameState.stats.stamina = Math.min(gameState.stats.maxStamina, gameState.stats.stamina + 2);
+            }
+
+            // Check Log Destruction
+            if (currentLog.hp <= 0) {
+                // Reward
+                gameState.stats.score++;
+
+                // XP Logic
+                let xpGain = currentLog.reward;
+                if (gameState.modifiers.hasBerserk) {
+                    const missingStaminaPct = 1 - (gameState.stats.stamina / gameState.stats.maxStamina);
+                    xpGain *= (1 + missingStaminaPct); // Até 2x XP
+                }
+                gameState.stats.xp += xpGain;
+
+                // Gold Logic
+                if (currentLog.type === 'gold') {
+                    gameState.stats.gold += Math.floor(10 * gameState.modifiers.goldMult);
+                    addPopup("+$$", 0, -80, 'gold');
+                }
+
+                // Chance de Mago (Raio)
+                let blocksRemoved = 1;
+                if (gameState.modifiers.magic && Math.random() < 0.1) {
+                    blocksRemoved = 3;
+                    gameState.stats.score += 2; // Bonus score
+                    addPopup("ZAP!", 0, -100, '#a29bfe');
+                    gameState.shake = 10;
+                }
+
+                // Chance de Machado de Fogo (Queimar próximo)
+                if (gameState.modifiers.hasFireAxe && Math.random() < 0.2) {
+                    blocksRemoved++;
+                    gameState.stats.score++;
+                    addPopup("BURN!", 0, -100, '#ff7675');
+                }
+
+                // Remove logs
+                for (let k = 0; k < blocksRemoved; k++) {
+                    gameState.tree.shift();
+                    addTreeSegment(true);
+                }
+
+                // Stamina Recover
+                let stamGain = 5 * gameState.modifiers.staminaGainMult;
+                gameState.stats.stamina = Math.min(gameState.stats.maxStamina, gameState.stats.stamina + stamGain);
+
+                // Shake
+                gameState.shake = 2;
+
+                // Check Level Up
+                if (gameState.stats.xp >= gameState.stats.xpToNext) {
+                    triggerLevelUp();
+                }
+            } else {
+                // Hit but didn't break (Iron)
+                gameState.shake = 5;
+            }
+
+            updateHUD();
+        }
+
+        function triggerLevelUp() {
+            gameState.screen = 'LEVEL_UP';
+            playSound('levelup');
+
+            // Pick 3 random cards
+            const pool = UPGRADES; // Could filter unlocked ones
+            const choices = [];
+            while (choices.length < 3) {
+                const r = pool[Math.floor(Math.random() * pool.length)];
+                if (!choices.includes(r)) choices.push(r);
+            }
+
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            choices.forEach(card => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.innerHTML = `
+                    <div class="card-title">${card.name}</div>
+                    <div class="card-desc">${card.desc}</div>
+                `;
+                el.onclick = () => {
+                    card.apply(gameState.modifiers);
+                    gameState.stats.xp -= gameState.stats.xpToNext;
+                    gameState.stats.xpToNext = Math.floor(gameState.stats.xpToNext * 1.5);
+                    gameState.stats.level++;
+                    gameState.screen = 'PLAYING';
+                    document.getElementById('levelup-screen').classList.add('hidden');
+                    addPopup("UPGRADE!", 0, 0, '#ffeaa7');
+                    updateHUD();
+                };
+                container.appendChild(el);
+            });
+
+            document.getElementById('levelup-screen').classList.remove('hidden');
+        }
+
+        function gameOver() {
+            gameState.screen = 'GAMEOVER';
+            gameState.meta.gold += gameState.stats.gold;
+            saveMeta();
+
+            document.getElementById('final-score').innerText = gameState.stats.score;
+            document.getElementById('final-gold').innerText = gameState.stats.gold;
+            document.getElementById('gameover-screen').classList.remove('hidden');
+            document.getElementById('hud').classList.add('hidden');
+        }
+
+        function spawnParticles(side, type) {
+            let color = '#d63031'; // Default wood
+            if (type === 'iron') color = '#636e72';
+            if (type === 'gold') color = '#fdcb6e';
+
+            for (let i = 0; i < 5; i++) {
+                gameState.particles.push({
+                    x: CANVAS.width / 2,
+                    y: CANVAS.height - 150,
+                    vx: (side === -1 ? 1 : -1) * (Math.random() * 5 + 2),
+                    vy: (Math.random() * -10) - 2,
+                    life: 1.0,
+                    color: color
+                });
+            }
+        }
+
+        function addPopup(text, xOff, yOff, color) {
+            gameState.popups.push({
+                text, x: CANVAS.width / 2 + xOff, y: CANVAS.height - 150 + yOff, life: 1.0, color
+            });
+        }
+
+        /**
+         * GAME LOOP & RENDERING
+         */
+        function loop(timestamp) {
+            if (gameState.screen === 'GAMEOVER' || gameState.screen === 'MENU') {
+                if (gameState.screen === 'MENU') renderMenuBackground();
+                return;
+            }
+
+            requestAnimationFrame(loop);
+
+            if (gameState.screen === 'PAUSED' || gameState.screen === 'LEVEL_UP') {
+                draw(); // Just draw last frame
+                return;
+            }
+
+            const dt = (timestamp - gameState.lastTime) / 1000;
+            gameState.lastTime = timestamp;
+
+            updateLogic(dt);
+            draw();
+        }
+
+        function updateLogic(dt) {
+            // Decay Stamina
+            if (!gameState.modifiers.hasTimeFreeze) {
+                let decay = 10 * dt * gameState.modifiers.decayMod; // Base decay
+                // Vampire decays faster handled in modifiers
+
+                gameState.stats.stamina -= decay;
+                if (gameState.stats.stamina <= 0) {
+                    gameOver();
+                }
+            }
+
+            // Update Particles
+            gameState.particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.5; // Gravity
+                p.life -= 0.05;
+            });
+            gameState.particles = gameState.particles.filter(p => p.life > 0);
+
+            // Update Popups
+            gameState.popups.forEach(p => {
+                p.y -= 1;
+                p.life -= 0.02;
+            });
+            gameState.popups = gameState.popups.filter(p => p.life > 0);
+
+            // Screen Shake Decay
+            if (gameState.shake > 0) gameState.shake *= 0.9;
+            if (gameState.shake < 0.5) gameState.shake = 0;
+
+            updateHUD();
+        }
+
+        function updateHUD() {
+            const stamPct = (gameState.stats.stamina / gameState.stats.maxStamina) * 100;
+            const xpPct = (gameState.stats.xp / gameState.stats.xpToNext) * 100;
+
+            document.getElementById('stamina-bar').style.width = `${Math.max(0, stamPct)}%`;
+            document.getElementById('xp-bar').style.width = `${Math.min(100, xpPct)}%`;
+            document.getElementById('score-display').innerText = gameState.stats.score + "m";
+            document.getElementById('gold-display').innerText = "💰 " + gameState.stats.gold;
+            document.getElementById('level-display').innerText = gameState.stats.level;
+        }
+
+        function draw() {
+            // Determine Biome
+            let currentBiome = BIOMES[0];
+            for (let b of BIOMES) {
+                if (gameState.stats.score >= b.score) currentBiome = b;
+            }
+
+            // Clear & Shake
+            CTX.save();
+            CTX.fillStyle = currentBiome.bg;
+            if (gameState.shake > 0) {
+                CTX.translate((Math.random() - 0.5) * gameState.shake, (Math.random() - 0.5) * gameState.shake);
+            }
+            CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
+
+            const centerX = CANVAS.width / 2;
+            const groundY = CANVAS.height - 100;
+
+            // Draw Background Decos (Simple Trees)
+            CTX.fillStyle = 'rgba(0,0,0,0.1)';
+            CTX.beginPath();
+            CTX.moveTo(centerX - 100, groundY);
+            CTX.lineTo(centerX - 150, groundY - 200);
+            CTX.lineTo(centerX - 50, groundY - 200);
+            CTX.fill();
+
+            // Draw Player
+            const pX = gameState.player.side === -1 ? centerX - 60 : centerX + 20;
+            const pY = groundY - 60;
+            const pClass = CLASSES.find(c => c.id === gameState.player.classId);
+
+            CTX.fillStyle = pClass.color;
+            CTX.fillRect(pX, pY, 40, 60);
+
+            // Player Eyes (To show direction)
+            CTX.fillStyle = 'white';
+            CTX.fillRect(gameState.player.side === -1 ? pX + 25 : pX + 5, pY + 10, 10, 10);
+
+            // Draw Axe Animation
+            if (gameState.player.animTimer > 0) {
+                gameState.player.animTimer--;
+                CTX.fillStyle = '#b2bec3';
+                if (gameState.player.side === -1) {
+                    CTX.fillRect(pX + 30, pY + 30, 40, 10); // Hitting right side of player (tree)
+                } else {
+                    CTX.fillRect(pX - 30, pY + 30, 40, 10);
+                }
+            }
+
+            // Draw Tree
+            const trunkW = 80;
+            gameState.tree.forEach((seg, index) => {
+                const yPos = groundY - (index * 60);
+
+                // Trunk
+                CTX.fillStyle = currentBiome.trunk;
+                if (seg.type === 'iron') CTX.fillStyle = '#636e72'; // Gray
+                if (seg.type === 'gold') CTX.fillStyle = '#f1c40f'; // Gold
+
+                // Tronco principal
+                CTX.fillRect(centerX - trunkW / 2, yPos - 60, trunkW, 60);
+
+                // Detalhe do tronco (casca)
+                CTX.fillStyle = 'rgba(0,0,0,0.1)';
+                CTX.fillRect(centerX - trunkW / 2 + 10, yPos - 60, 10, 60);
+
+                // Branch
+                if (seg.branch !== 'none') {
+                    CTX.fillStyle = '#2d3436'; // Dark branch
+                    if (currentBiome.name === 'Inferno') CTX.fillStyle = '#d63031'; // Red thorns
+
+                    if (seg.branch === 'left') {
+                        CTX.fillRect(centerX - trunkW / 2 - 60, yPos - 50, 60, 20);
+                        // Thorns/Leaves
+                        CTX.fillStyle = currentBiome.score >= 250 ? '#fff' : '#00b894'; // Snow or Leaves
+                        CTX.fillRect(centerX - trunkW / 2 - 60, yPos - 60, 40, 10);
+                    } else {
+                        CTX.fillRect(centerX + trunkW / 2, yPos - 50, 60, 20);
+                        CTX.fillStyle = currentBiome.score >= 250 ? '#fff' : '#00b894';
+                        CTX.fillRect(centerX + trunkW / 2 + 20, yPos - 60, 40, 10);
+                    }
+                }
+
+                // HP Indicator for Iron
+                if (seg.type === 'iron' && seg.hp > 1) {
+                    CTX.fillStyle = 'white';
+                    CTX.fillRect(centerX - 10, yPos - 40, 20, 20);
+                    CTX.fillStyle = 'black';
+                    CTX.font = '10px Arial';
+                    CTX.fillText(seg.hp, centerX - 3, yPos - 27);
+                }
+            });
+
+            // Draw Particles
+            gameState.particles.forEach(p => {
+                CTX.globalAlpha = p.life;
+                CTX.fillStyle = p.color;
+                CTX.fillRect(p.x, p.y, 8, 8);
+                CTX.globalAlpha = 1.0;
+            });
+
+            // Draw Popups
+            gameState.popups.forEach(p => {
+                CTX.globalAlpha = p.life;
+                CTX.fillStyle = p.color;
+                CTX.font = '20px "Press Start 2P"';
+                CTX.textAlign = "center";
+                CTX.fillText(p.text, p.x, p.y);
+                CTX.globalAlpha = 1.0;
+            });
+
+            // Ground
+            CTX.fillStyle = '#2d3436';
+            CTX.fillRect(0, groundY, CANVAS.width, 100);
+
+            CTX.restore();
+        }
+
+        // Simple visual for Menu BG
+        function renderMenuBackground() {
+            CTX.fillStyle = '#2d3436';
+            CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
+            // Draw a big static tree
+            CTX.fillStyle = '#81ecec';
+            CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
+            CTX.fillStyle = '#795548';
+            CTX.fillRect(CANVAS.width / 2 - 40, 0, 80, CANVAS.height);
+        }
+
+        /**
+         * INPUTS & MENU LOGIC
+         */
+
+        // Class Selection Logic
+        let currentClassIndex = 0;
+        function updateClassMenu() {
+            const cls = CLASSES[currentClassIndex];
+            document.getElementById('class-name').innerText = cls.name;
+            document.getElementById('class-desc').innerText = cls.desc;
+            document.getElementById('class-name').style.color = cls.color;
+
+            const isUnlocked = gameState.meta.unlocked.includes(cls.id);
+            const buyBtn = document.getElementById('buy-class-btn');
+            const costDiv = document.getElementById('class-cost');
+
+            if (isUnlocked) {
+                buyBtn.classList.add('hidden');
+                costDiv.classList.add('hidden');
+                gameState.player.classId = cls.id;
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('start-btn').innerText = "JOGAR";
+            } else {
+                buyBtn.classList.remove('hidden');
+                costDiv.classList.remove('hidden');
+                costDiv.innerText = `Custo: ${cls.cost} Ouro`;
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('start-btn').innerText = "BLOQUEADO";
+
+                if (gameState.meta.gold >= cls.cost) {
+                    buyBtn.disabled = false;
+                    buyBtn.innerText = "DESBLOQUEAR";
+                } else {
+                    buyBtn.disabled = true;
+                    buyBtn.innerText = "OURO INSUFICIENTE";
+                }
+            }
+        }
+
+        document.getElementById('prev-class').onclick = () => {
+            currentClassIndex = (currentClassIndex - 1 + CLASSES.length) % CLASSES.length;
+            updateClassMenu();
+        };
+        document.getElementById('next-class').onclick = () => {
+            currentClassIndex = (currentClassIndex + 1) % CLASSES.length;
+            updateClassMenu();
+        };
+        document.getElementById('buy-class-btn').onclick = () => {
+            const cls = CLASSES[currentClassIndex];
+            if (gameState.meta.gold >= cls.cost) {
+                gameState.meta.gold -= cls.cost;
+                gameState.meta.unlocked.push(cls.id);
+                saveMeta();
+                updateMetaUI();
+                updateClassMenu();
+            }
+        };
+
+        function updateMetaUI() {
+            document.getElementById('meta-gold').innerText = gameState.meta.gold;
+            const upCost = 200 * (gameState.meta.staminaLvl + 1);
+            const btn = document.getElementById('upgrade-stamina-btn');
+            btn.innerText = `Max Stamina +10 (Lvl ${gameState.meta.staminaLvl}) - ${upCost}g`;
+            btn.onclick = () => {
+                if (gameState.meta.gold >= upCost) {
+                    gameState.meta.gold -= upCost;
+                    gameState.meta.staminaLvl++;
+                    saveMeta();
+                    updateMetaUI();
+                }
+            };
+        }
+
+        // Keyboard Input
+        window.addEventListener('keydown', (e) => {
+            if (gameState.screen === 'PLAYING') {
+                if (e.key === 'ArrowLeft') chop(-1);
+                if (e.key === 'ArrowRight') chop(1);
+            }
+        });
+
+        // Touch Input
+        CANVAS.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState.screen === 'PLAYING') {
+                const touchX = e.touches[0].clientX;
+                if (touchX < window.innerWidth / 2) chop(-1);
+                else chop(1);
+            }
+        }, { passive: false });
+
+        // UI Buttons
+        document.getElementById('start-btn').onclick = () => {
+            initGame();
+        };
+        document.getElementById('restart-btn').onclick = () => {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('menu-screen').classList.remove('hidden');
+            renderMenuBackground();
+            updateMetaUI();
+        };
+
+        // Init
+        updateMetaUI();
+        updateClassMenu();
+        renderMenuBackground();
+
+    </script>
+</body>
+
+</html>
