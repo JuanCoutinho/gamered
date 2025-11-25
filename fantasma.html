@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fantasma de Esparta: Labirinto do Olimpo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Cinzel', serif;
+            color: white;
+            user-select: none;
+            touch-action: none; /* Impede zoom/scroll no mobile */
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* UI Layers */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top HUD */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .bars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .health-frame {
+            width: 300px;
+            height: 25px;
+            background: #111;
+            border: 2px solid #a67c00;
+            position: relative;
+            transform: skewX(-10deg);
+            overflow: hidden;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #800000, #ff0000);
+            width: 100%;
+            transition: width 0.1s;
+        }
+
+        .xp-frame {
+            width: 250px;
+            height: 8px;
+            background: #000;
+            border: 1px solid #555;
+            transform: skewX(-10deg);
+        }
+
+        .xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d35400, #f1c40f);
+            width: 0%;
+        }
+
+        .info-panel {
+            text-align: right;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .timer {
+            font-size: 32px;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .boss-counter {
+            font-size: 18px;
+            color: #c0392b;
+            margin-top: 5px;
+        }
+
+        /* Boss Health */
+        #boss-hud {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            display: none;
+            text-align: center;
+        }
+        
+        .boss-title { font-size: 24px; color: #c0392b; text-shadow: 0 0 10px #000; }
+        .boss-bar-frame { width: 100%; height: 30px; background: #222; border: 3px solid #555; margin-top: 5px; }
+        .boss-bar-fill { width: 100%; height: 100%; background: #c0392b; transition: width 0.2s; }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            display: none; /* Ativado via JS se for touch */
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            pointer-events: none;
+        }
+
+        .joystick-area {
+            position: absolute;
+            bottom: 20px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            pointer-events: auto;
+        }
+
+        .joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .action-buttons {
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            pointer-events: auto;
+        }
+
+        .btn-mobile {
+            border-radius: 50%;
+            background: rgba(192, 57, 43, 0.6);
+            border: 2px solid #fff;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .btn-attack { width: 90px; height: 90px; background: rgba(192, 57, 43, 0.7); }
+        .btn-attack:active { background: rgba(255, 0, 0, 0.9); transform: scale(0.95); }
+        
+        .btn-dash { width: 60px; height: 60px; background: rgba(241, 196, 15, 0.6); margin-bottom: 20px; }
+        .btn-dash:active { background: rgba(255, 255, 0, 0.9); transform: scale(0.95); }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 5, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            pointer-events: auto;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { font-size: 50px; color: #c0392b; margin: 0; text-shadow: 0 0 20px #f00; letter-spacing: 5px; }
+        h2 { color: #f1c40f; margin-bottom: 30px; }
+        p { color: #aaa; max-width: 600px; margin-bottom: 30px; line-height: 1.5; }
+
+        button.menu-btn {
+            padding: 15px 40px;
+            font-family: 'Cinzel', serif;
+            font-size: 20px;
+            background: transparent;
+            color: #f1c40f;
+            border: 2px solid #f1c40f;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+        button.menu-btn:hover { background: #f1c40f; color: #000; box-shadow: 0 0 20px #f1c40f; }
+
+        /* Upgrade Cards */
+        .cards-container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .card {
+            width: 180px; height: 260px; background: #1a1a1a; border: 1px solid #555;
+            padding: 15px; display: flex; flex-direction: column; align-items: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .card:hover { transform: scale(1.05); border-color: #f1c40f; background: #222; }
+        .card-icon { font-size: 40px; margin: 20px 0; }
+
+        /* Hit Combo Text */
+        #combo-text {
+            position: absolute;
+            left: 50%;
+            top: 20%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            font-weight: 900;
+            font-style: italic;
+            color: #f1c40f;
+            text-shadow: 2px 2px 0 #c0392b;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.1s;
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="top-bar">
+            <div class="bars-container">
+                <div class="health-frame"><div class="health-fill" id="hp-bar"></div></div>
+                <div class="xp-frame"><div class="xp-fill" id="xp-bar"></div></div>
+            </div>
+            <div class="info-panel">
+                <div class="timer" id="timer">00:00</div>
+                <div class="boss-counter" id="boss-counter">Chefes Derrotados: 0/4</div>
+            </div>
+        </div>
+
+        <div id="boss-hud">
+            <div class="boss-title" id="boss-name">BOSS</div>
+            <div class="boss-bar-frame"><div class="boss-bar-fill" id="boss-hp"></div></div>
+        </div>
+
+        <div id="combo-text">0 HITS</div>
+    </div>
+
+    <!-- Mobile UI -->
+    <div id="mobile-controls">
+        <div class="joystick-area" id="joystick">
+            <div class="joystick-knob" id="knob"></div>
+        </div>
+        <div class="action-buttons">
+            <div class="btn-mobile btn-dash" id="btn-dash">⚡</div>
+            <div class="btn-mobile btn-attack" id="btn-attack">⚔️</div>
+        </div>
+    </div>
+
+    <!-- Screens -->
+    <div id="menu-screen" class="screen">
+        <h1>Fantasma de Esparta</h1>
+        <h2>Labirinto do Olimpo</h2>
+        <p>Explore o labirinto infinito. Mate inimigos para invocar os Generais dos Deuses.<br>Mate 3 Generais para enfrentar ARES.</p>
+        <button class="menu-btn" onclick="Game.start()">Começar Jornada</button>
+    </div>
+
+    <div id="upgrade-screen" class="screen hidden">
+        <h2>Dádiva Divina</h2>
+        <div class="cards-container" id="upgrade-cards"></div>
+    </div>
+
+    <div id="end-screen" class="screen hidden">
+        <h1 id="end-title">VITÓRIA</h1>
+        <p id="end-msg">Você destruiu o Olimpo.</p>
+        <p id="end-time">Tempo: 00:00</p>
+        <button class="menu-btn" onclick="location.reload()">Jogar Novamente</button>
+    </div>
+
+    <script>
+        // --- ENGINE BÁSICA ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Declaração do estado global do jogo
+        let gameState = 'MENU';
+
+        let WIDTH, HEIGHT;
+        const resize = () => {
+            WIDTH = window.innerWidth;
+            HEIGHT = window.innerHeight;
+            canvas.width = WIDTH;
+            canvas.height = HEIGHT;
+        };
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- INPUT SYSTEM (Teclado + Mouse + Touch) ---
+        const Input = {
+            keys: { w:false, a:false, s:false, d:false, space:false },
+            mouse: { x:0, y:0, down:false, worldX: 0, worldY: 0 },
+            joystick: { active: false, dx: 0, dy: 0 }, // -1 a 1
+            isMobile: false,
+
+            init() {
+                window.addEventListener('keydown', e => {
+                    const k = e.key.toLowerCase();
+                    if(k==='w') this.keys.w=true;
+                    if(k==='a') this.keys.a=true;
+                    if(k==='s') this.keys.s=true;
+                    if(k==='d') this.keys.d=true;
+                    if(e.code==='Space') this.keys.space=true;
+                });
+                window.addEventListener('keyup', e => {
+                    const k = e.key.toLowerCase();
+                    if(k==='w') this.keys.w=false;
+                    if(k==='a') this.keys.a=false;
+                    if(k==='s') this.keys.s=false;
+                    if(k==='d') this.keys.d=false;
+                    if(e.code==='Space') this.keys.space=false;
+                });
+                window.addEventListener('mousemove', e => {
+                    const r = canvas.getBoundingClientRect();
+                    this.mouse.x = e.clientX - r.left;
+                    this.mouse.y = e.clientY - r.top;
+                });
+                window.addEventListener('mousedown', () => this.mouse.down = true);
+                window.addEventListener('mouseup', () => this.mouse.down = false);
+
+                // Touch
+                document.body.addEventListener('touchstart', (e) => {
+                    this.isMobile = true;
+                    document.getElementById('mobile-controls').style.display = 'block';
+                }, {once:true});
+
+                this.setupJoystick();
+            },
+
+            updateWorldMouse(camX, camY) {
+                this.mouse.worldX = this.mouse.x + camX;
+                this.mouse.worldY = this.mouse.y + camY;
+            },
+
+            getMovement() {
+                let dx = 0, dy = 0;
+                if (this.joystick.active) {
+                    dx = this.joystick.dx;
+                    dy = this.joystick.dy;
+                } else {
+                    if (this.keys.w) dy = -1;
+                    if (this.keys.s) dy = 1;
+                    if (this.keys.a) dx = -1;
+                    if (this.keys.d) dx = 1;
+                }
+                // Normalize
+                if (dx !== 0 || dy !== 0) {
+                    const l = Math.hypot(dx, dy);
+                    if (l > 1) { dx/=l; dy/=l; } // Joystick pode ser < 1
+                    else if (!this.joystick.active) { dx/=l; dy/=l; } // Teclado sempre 1
+                }
+                return { x: dx, y: dy };
+            },
+
+            setupJoystick() {
+                const joy = document.getElementById('joystick');
+                const knob = document.getElementById('knob');
+                let startX, startY;
+
+                joy.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                    this.joystick.active = true;
+                }, {passive: false});
+
+                joy.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    if(!this.joystick.active) return;
+                    const touch = e.touches[0];
+                    const deltaX = touch.clientX - startX;
+                    const deltaY = touch.clientY - startY;
+                    const dist = Math.hypot(deltaX, deltaY);
+                    const maxDist = 40;
+                    
+                    const clampedDist = Math.min(dist, maxDist);
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    const kx = Math.cos(angle) * clampedDist;
+                    const ky = Math.sin(angle) * clampedDist;
+
+                    knob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+                    
+                    this.joystick.dx = kx / maxDist;
+                    this.joystick.dy = ky / maxDist;
+                }, {passive: false});
+
+                const endJoy = () => {
+                    this.joystick.active = false;
+                    this.joystick.dx = 0;
+                    this.joystick.dy = 0;
+                    knob.style.transform = `translate(-50%, -50%)`;
+                };
+                joy.addEventListener('touchend', endJoy);
+                joy.addEventListener('touchcancel', endJoy);
+
+                // Buttons
+                const btnAtk = document.getElementById('btn-attack');
+                btnAtk.addEventListener('touchstart', (e) => { e.preventDefault(); this.mouse.down = true; });
+                btnAtk.addEventListener('touchend', (e) => { e.preventDefault(); this.mouse.down = false; });
+                
+                const btnDash = document.getElementById('btn-dash');
+                btnDash.addEventListener('touchstart', (e) => { e.preventDefault(); this.keys.space = true; });
+                btnDash.addEventListener('touchend', (e) => { e.preventDefault(); this.keys.space = false; });
+            }
+        };
+
+        // --- MAPA PROCEDURAL (Ruído simples) ---
+        const World = {
+            tileSize: 80,
+            walls: new Map(), // chave "x,y" -> bool
+
+            isWall(x, y) {
+                // Algoritmo de ruído pseudo-aleatório determinístico
+                const scale = 0.008; // Quanto menor, mais largos os corredores
+                const val = Math.sin(x * scale) * Math.cos(y * scale) + Math.sin((x+y)*scale*2)*0.5;
+                // Threshold para parede
+                return val > 0.6; 
+            },
+
+            checkCollision(x, y, radius) {
+                // Checa os tiles ao redor da posição
+                const tx = Math.floor(x / this.tileSize);
+                const ty = Math.floor(y / this.tileSize);
+                
+                for(let i = -1; i <= 1; i++) {
+                    for(let j = -1; j <= 1; j++) {
+                        if (this.isWall((tx+i)*this.tileSize, (ty+j)*this.tileSize)) {
+                            // Colisão AABB vs Circle simples
+                            const wx = (tx+i) * this.tileSize;
+                            const wy = (ty+j) * this.tileSize;
+                            
+                            // Acha ponto mais próximo no quadrado da parede
+                            const closeX = Math.max(wx, Math.min(x, wx + this.tileSize));
+                            const closeY = Math.max(wy, Math.min(y, wy + this.tileSize));
+                            
+                            const dist = Math.hypot(x - closeX, y - closeY);
+                            if (dist < radius) {
+                                return true; // Colidiu
+                            }
+                        }
+                    }
+                }
+                return false;
+            },
+
+            draw(ctx, camX, camY) {
+                // Desenha apenas o que está visível
+                const startCol = Math.floor(camX / this.tileSize);
+                const endCol = startCol + (WIDTH / this.tileSize) + 1;
+                const startRow = Math.floor(camY / this.tileSize);
+                const endRow = startRow + (HEIGHT / this.tileSize) + 1;
+
+                ctx.fillStyle = '#0a0a0a'; // Floor color
+                ctx.fillRect(0,0,WIDTH,HEIGHT); // Limpa
+
+                for (let c = startCol; c <= endCol; c++) {
+                    for (let r = startRow; r <= endRow; r++) {
+                        const px = c * this.tileSize;
+                        const py = r * this.tileSize;
+                        
+                        if (this.isWall(px, py)) {
+                            // Parede
+                            ctx.fillStyle = '#222';
+                            ctx.fillRect(px - camX, py - camY, this.tileSize, this.tileSize);
+                            // Topo 3D fake
+                            ctx.fillStyle = '#111';
+                            ctx.fillRect(px - camX, py - camY - 15, this.tileSize, 15);
+                            ctx.strokeStyle = '#444';
+                            ctx.strokeRect(px - camX, py - camY, this.tileSize, this.tileSize);
+                        } else {
+                            // Chão (detalhes)
+                            if ((c+r)%2 === 0) ctx.fillStyle = '#0e0e0e';
+                            else ctx.fillStyle = '#0a0a0a';
+                            ctx.fillRect(px - camX, py - camY, this.tileSize, this.tileSize);
+                            
+                            // Detalhe ocasional
+                            if (Math.abs(Math.sin(c*r)) > 0.95) {
+                                ctx.fillStyle = '#1a1a1a';
+                                ctx.beginPath(); ctx.arc(px - camX + 40, py - camY + 40, 5, 0, Math.PI*2); ctx.fill();
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // --- CLASSES DO JOGO ---
+
+        class Player {
+            constructor() {
+                this.x = 0; this.y = 0;
+                this.radius = 20;
+                this.speed = 6;
+                this.hp = 100; this.maxHp = 100;
+                this.angle = 0;
+                
+                // Combate
+                this.isAttacking = false;
+                this.comboStep = 0;
+                this.comboTimer = 0;
+                this.attackCooldown = 0;
+                this.baseDamage = 20;
+                
+                // Dash
+                this.dashCooldown = 0;
+                this.isDashing = false;
+                this.invuln = 0;
+            }
+
+            update() {
+                // Input Movimento
+                const move = Input.getMovement();
+                
+                // Direção do Olhar (Mouse ou Joystick se atacando)
+                if (Input.isMobile && Input.joystick.active && !this.isAttacking) {
+                    // No mobile, se mover, olha pra frente. Se atacar, auto-aim (implementado no ataque)
+                    this.angle = Math.atan2(move.y, move.x);
+                } else {
+                    this.angle = Math.atan2(Input.mouse.worldY - this.y, Input.mouse.worldX - this.x);
+                }
+
+                if (!this.isAttacking || this.comboStep === 2) {
+                    // Colisão e Movimento
+                    let nextX = this.x + move.x * (this.isDashing ? 18 : this.speed);
+                    let nextY = this.y + move.y * (this.isDashing ? 18 : this.speed);
+
+                    if (!World.checkCollision(nextX, nextY, this.radius)) {
+                        this.x = nextX; this.y = nextY;
+                    } else if (!World.checkCollision(nextX, this.y, this.radius)) {
+                        this.x = nextX; // Slide X
+                    } else if (!World.checkCollision(this.x, nextY, this.radius)) {
+                        this.y = nextY; // Slide Y
+                    }
+                }
+
+                // Dash
+                if (Input.keys.space && this.dashCooldown <= 0) {
+                    this.isDashing = true;
+                    this.dashCooldown = 30;
+                    this.invuln = 15;
+                    this.isAttacking = false; // Cancela ataque
+                    this.comboStep = 0;
+                    Particles.createExplosion(this.x, this.y, 'rgba(255,255,255,0.2)', 10);
+                }
+                if (this.dashCooldown > 0) this.dashCooldown--;
+                if (this.dashCooldown < 20) this.isDashing = false;
+                if (this.invuln > 0) this.invuln--;
+
+                // Ataque
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.comboTimer > 0) this.comboTimer--;
+                else this.comboStep = 0;
+
+                if (Input.mouse.down && this.attackCooldown <= 0 && !this.isDashing) {
+                    this.attack();
+                    Input.mouse.down = false; // Trigger único
+                }
+            }
+
+            attack() {
+                this.isAttacking = true;
+                this.comboTimer = 60;
+                
+                // Auto-aim no mobile se não estiver usando mouse
+                if (Input.isMobile) {
+                    // Acha inimigo mais perto
+                    let close = Enemies.list.find(e => Math.hypot(e.x-this.x, e.y-this.y) < 250);
+                    if (close) {
+                        this.angle = Math.atan2(close.y - this.y, close.x - this.x);
+                    }
+                }
+
+                let dmg = this.baseDamage;
+                let range = 160;
+                let arc = Math.PI / 1.5;
+
+                if (this.comboStep === 0) {
+                    // Hit 1
+                    this.attackCooldown = 15;
+                    Visuals.bladeSwing(this.x, this.y, this.angle, range, false);
+                    this.comboStep = 1;
+                } else if (this.comboStep === 1) {
+                    // Hit 2
+                    dmg *= 1.2;
+                    this.attackCooldown = 15;
+                    Visuals.bladeSwing(this.x, this.y, this.angle, range, true);
+                    this.comboStep = 2;
+                } else {
+                    // Hit 3 (Finisher)
+                    dmg *= 2.5;
+                    range *= 1.2;
+                    arc = Math.PI; // 180 graus
+                    this.attackCooldown = 40;
+                    Visuals.bladeSwing(this.x, this.y, this.angle, range, false, true);
+                    // Explosão visual
+                    setTimeout(() => Particles.createExplosion(this.x + Math.cos(this.angle)*100, this.y + Math.sin(this.angle)*100, 'orange', 20), 100);
+                    Game.shake(15);
+                    this.comboStep = 0;
+                }
+
+                // Delay do dano para bater com animação
+                setTimeout(() => {
+                    Combat.dealAreaDamage(this.x, this.y, this.angle, range, arc, dmg);
+                    this.isAttacking = false;
+                }, 100);
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Flash invulneravel
+                if (this.invuln > 0 && Math.floor(Date.now()/50)%2===0) ctx.globalAlpha = 0.5;
+
+                // Corpo
+                ctx.fillStyle = '#ecf0f1';
+                ctx.beginPath(); ctx.arc(0,0, this.radius, 0, Math.PI*2); ctx.fill();
+                
+                // Tatuagem Kratos
+                ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(-5, -15); ctx.lineTo(0,0); ctx.lineTo(-5, 15); ctx.stroke();
+
+                // Mãos e Correntes
+                ctx.fillStyle = '#bdc3c7';
+                ctx.beginPath(); ctx.arc(15, 12, 6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(15, -12, 6, 0, Math.PI*2); ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Enemy {
+            constructor(type, x, y) {
+                this.x = x; this.y = y;
+                this.type = type;
+                this.hp = type.hp * (1 + Game.difficulty * 0.2);
+                this.maxHp = this.hp;
+                this.radius = type.radius;
+                this.dead = false;
+                
+                this.flash = 0;
+                this.pushX = 0; this.pushY = 0;
+                
+                // AI
+                this.state = 'CHASE';
+                this.timer = 0;
+            }
+
+            update() {
+                if (this.dead) return;
+                
+                // Physics
+                this.x += this.pushX; this.y += this.pushY;
+                this.pushX *= 0.85; this.pushY *= 0.85;
+
+                const dist = Math.hypot(Game.player.x - this.x, Game.player.y - this.y);
+
+                // State Machine simples
+                if (this.state === 'CHASE') {
+                    const angle = Math.atan2(Game.player.y - this.y, Game.player.x - this.x);
+                    
+                    // Colisão com paredes
+                    let nextX = this.x + Math.cos(angle) * this.type.speed;
+                    let nextY = this.y + Math.sin(angle) * this.type.speed;
+
+                    if(!World.checkCollision(nextX, nextY, this.radius)) {
+                        this.x = nextX; this.y = nextY;
+                    }
+
+                    // Ataque
+                    if (dist < this.radius + 40) {
+                        this.state = 'PREPARE';
+                        this.timer = 40; // Tempo para atacar
+                    }
+                } else if (this.state === 'PREPARE') {
+                    this.timer--;
+                    if (this.timer <= 0) {
+                        this.state = 'ATTACK';
+                        // Dano
+                        if (dist < this.radius + 50) {
+                            Combat.dealPlayerDamage(this.type.dmg);
+                        }
+                        this.timer = 60; // Cooldown
+                    }
+                } else if (this.state === 'ATTACK') {
+                    this.timer--;
+                    if (this.timer <= 0) this.state = 'CHASE';
+                }
+
+                if (this.flash > 0) this.flash--;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                if (this.flash > 0) ctx.fillStyle = '#fff';
+                else ctx.fillStyle = this.type.color;
+
+                // Forma baseada no tipo
+                ctx.beginPath();
+                if (this.type.boss) {
+                    ctx.arc(0,0, this.radius, 0, Math.PI*2);
+                    ctx.shadowBlur = 20; ctx.shadowColor = 'red';
+                } else {
+                    ctx.arc(0,0, this.radius, 0, Math.PI*2);
+                }
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Barra de Vida
+                if (this.hp < this.maxHp) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(-15, -this.radius-10, 30*(this.hp/this.maxHp), 4);
+                }
+
+                // Indicador de Ataque
+                if (this.state === 'PREPARE') {
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(0,0, this.radius + 5 + (Math.random()*5), 0, Math.PI*2); ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            takeDamage(dmg) {
+                this.hp -= dmg;
+                this.flash = 5;
+                // Knockback
+                const ang = Math.atan2(this.y - Game.player.y, this.x - Game.player.x);
+                this.pushX = Math.cos(ang) * 10;
+                this.pushY = Math.sin(ang) * 10;
+                
+                Visuals.damageNumber(this.x, this.y, Math.floor(dmg));
+                Particles.createExplosion(this.x, this.y, '#c0392b', 5); // Sangue
+
+                if (this.hp <= 0) {
+                    this.dead = true;
+                    Game.onKill(this);
+                }
+            }
+        }
+
+        // --- GERENCIADORES ---
+
+        const Enemies = {
+            list: [],
+            types: {
+                skeleton: { hp: 50, speed: 2, radius: 18, color: '#bdc3c7', dmg: 10, xp: 10 },
+                gladiator: { hp: 120, speed: 1.5, radius: 25, color: '#7f8c8d', dmg: 20, xp: 25 },
+                minotaur: { hp: 300, speed: 2.5, radius: 35, color: '#5e3a28', dmg: 30, xp: 50 },
+                // Bosses
+                hydra: { hp: 2000, speed: 1, radius: 60, color: '#2ecc71', dmg: 40, xp: 500, boss: true, name: "Hidra" },
+                medusa: { hp: 3000, speed: 3, radius: 50, color: '#27ae60', dmg: 50, xp: 800, boss: true, name: "Medusa" },
+                hercules: { hp: 5000, speed: 4, radius: 55, color: '#f39c12', dmg: 70, xp: 1000, boss: true, name: "Hércules" },
+                ares: { hp: 10000, speed: 5, radius: 70, color: '#e74c3c', dmg: 100, xp: 5000, boss: true, name: "ARES" }
+            },
+            
+            spawn(typeKey, px, py) {
+                // Tenta spawnar numa posição válida perto do player
+                let dist = 400 + Math.random() * 400; // Fora da tela
+                let angle = Math.random() * Math.PI * 2;
+                
+                // Se px/py não fornecidos
+                let x = px || Game.player.x + Math.cos(angle) * dist;
+                let y = py || Game.player.y + Math.sin(angle) * dist;
+
+                // Verifica parede
+                if (!World.checkCollision(x, y, 20)) {
+                    this.list.push(new Enemy(this.types[typeKey], x, y));
+                }
+            },
+
+            update() {
+                this.list = this.list.filter(e => !e.dead);
+                this.list.forEach(e => e.update());
+
+                // Spawn Logic
+                if (!Game.bossActive && this.list.length < 15 + Game.difficulty) {
+                    let r = Math.random();
+                    let type = 'skeleton';
+                    if (Game.difficulty > 2 && r > 0.7) type = 'gladiator';
+                    if (Game.difficulty > 5 && r > 0.9) type = 'minotaur';
+                    this.spawn(type);
+                }
+            },
+
+            draw(ctx) {
+                this.list.forEach(e => e.draw(ctx));
+            }
+        };
+
+        const Combat = {
+            dealAreaDamage(x, y, angle, range, arc, damage) {
+                let hits = 0;
+                Enemies.list.forEach(e => {
+                    const dist = Math.hypot(e.x - x, e.y - y);
+                    if (dist < range + e.radius) {
+                        const angleToEnemy = Math.atan2(e.y - y, e.x - x);
+                        // Normaliza diferença de angulo para -PI a PI
+                        let diff = angleToEnemy - angle;
+                        while (diff > Math.PI) diff -= Math.PI*2;
+                        while (diff < -Math.PI) diff += Math.PI*2;
+                        
+                        if (Math.abs(diff) < arc / 2) {
+                            e.takeDamage(damage);
+                            hits++;
+                        }
+                    }
+                });
+                
+                if (hits > 0) {
+                    Game.hitCombo(hits);
+                    Game.shake(5);
+                }
+            },
+
+            dealPlayerDamage(amount) {
+                if (Game.player.invuln > 0) return;
+                Game.player.hp -= amount;
+                Game.player.invuln = 30;
+                Game.shake(10);
+                Visuals.damageNumber(Game.player.x, Game.player.y, `-${amount}`, '#c0392b');
+                
+                // Atualiza UI
+                const pct = (Game.player.hp / Game.player.maxHp) * 100;
+                document.getElementById('hp-bar').style.width = pct + '%';
+
+                if (Game.player.hp <= 0) Game.over();
+            }
+        };
+
+        const Particles = {
+            list: [],
+            createExplosion(x, y, color, count) {
+                for(let i=0; i<count; i++) {
+                    this.list.push({
+                        x, y, 
+                        vx: (Math.random()-0.5)*10, 
+                        vy: (Math.random()-0.5)*10,
+                        life: 20+Math.random()*10,
+                        color, size: Math.random()*5+2
+                    });
+                }
+            },
+            update() {
+                for(let i=this.list.length-1; i>=0; i--) {
+                    let p = this.list[i];
+                    p.x += p.vx; p.y += p.vy;
+                    p.life--;
+                    if(p.life <= 0) this.list.splice(i, 1);
+                }
+            },
+            draw(ctx) {
+                this.list.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                });
+            }
+        };
+
+        const Visuals = {
+            dmgNums: [],
+            whips: [],
+
+            damageNumber(x, y, val, color='#fff') {
+                this.dmgNums.push({x, y: y-20, val, life: 40, color});
+            },
+
+            bladeSwing(x, y, angle, range, flipped, isHeavy=false) {
+                // Cria efeito visual de lâmina
+                this.whips.push({
+                    x, y, angle, range, flipped, isHeavy,
+                    life: 10, maxLife: 10
+                });
+            },
+
+            updateAndDraw(ctx) {
+                // Whips
+                for(let i=this.whips.length-1; i>=0; i--) {
+                    let w = this.whips[i];
+                    w.life--;
+                    if (w.life <= 0) { this.whips.splice(i, 1); continue; }
+
+                    let progress = 1 - (w.life / w.maxLife);
+                    let spread = w.flipped ? -1 : 1;
+                    
+                    ctx.save();
+                    ctx.translate(w.x, w.y);
+                    ctx.rotate(w.angle);
+                    
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = w.isHeavy ? '#f1c40f' : '#e74c3c';
+                    ctx.strokeStyle = w.isHeavy ? '#f39c12' : '#c0392b';
+                    ctx.lineWidth = 5 * (1-progress);
+                    
+                    ctx.beginPath();
+                    // Desenha curva
+                    let endX = Math.cos(progress * spread) * w.range;
+                    let endY = Math.sin(progress * spread) * w.range;
+                    
+                    // Simula chicote
+                    ctx.moveTo(0,0);
+                    ctx.quadraticCurveTo(w.range/2, w.range/4 * spread, w.range, endY*spread);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Numbers
+                ctx.font = "bold 20px Arial";
+                ctx.textAlign = "center";
+                for(let i=this.dmgNums.length-1; i>=0; i--) {
+                    let d = this.dmgNums[i];
+                    d.life--;
+                    d.y -= 1;
+                    if (d.life <= 0) { this.dmgNums.splice(i, 1); continue; }
+                    
+                    ctx.globalAlpha = d.life / 40;
+                    ctx.fillStyle = d.color;
+                    ctx.fillText(d.val, d.x, d.y);
+                    ctx.strokeStyle = 'black';
+                    ctx.strokeText(d.val, d.x, d.y);
+                    ctx.globalAlpha = 1;
+                }
+            }
+        };
+
+        const Game = {
+            player: null,
+            difficulty: 1, // aumenta com XP
+            xp: 0,
+            nextLevelXp: 100,
+            bossesKilled: 0,
+            bossActive: false,
+            bossSpawnThreshold: 500, // XP para spawnar boss
+            currentXpAccumulated: 0,
+            
+            startTime: 0,
+            camera: { x:0, y:0, shake: 0 },
+            
+            combo: 0,
+            comboTimer: 0,
+
+            start() {
+                Input.init();
+                this.player = new Player();
+                this.difficulty = 1;
+                this.xp = 0;
+                this.bossesKilled = 0;
+                this.currentXpAccumulated = 0;
+                Enemies.list = [];
+                Particles.list = [];
+                this.startTime = Date.now();
+                
+                document.getElementById('menu-screen').classList.add('hidden');
+                document.getElementById('end-screen').classList.add('hidden');
+                document.getElementById('ui-layer').classList.remove('hidden');
+                
+                gameState = 'PLAYING';
+                this.loop();
+            },
+
+            shake(amt) {
+                this.camera.shake = amt;
+            },
+
+            hitCombo(count) {
+                this.combo += count;
+                this.comboTimer = 100;
+                const el = document.getElementById('combo-text');
+                el.innerText = this.combo + " HITS";
+                el.style.opacity = 1;
+                el.style.transform = "translateX(-50%) scale(1.5)";
+                setTimeout(() => el.style.transform = "translateX(-50%) scale(1)", 100);
+            },
+
+            onKill(enemy) {
+                this.xp += enemy.type.xp;
+                this.currentXpAccumulated += enemy.type.xp;
+                
+                // Barra de XP
+                let pct = (this.xp % this.nextLevelXp) / this.nextLevelXp * 100;
+                document.getElementById('xp-bar').style.width = pct + '%';
+
+                // Check Boss Spawn
+                if (!this.bossActive && this.currentXpAccumulated >= this.bossSpawnThreshold) {
+                    this.spawnBoss();
+                }
+
+                if (enemy.type.boss) {
+                    this.bossesKilled++;
+                    this.bossActive = false;
+                    document.getElementById('boss-hud').style.display = 'none';
+                    document.getElementById('boss-counter').innerText = `Chefes Derrotados: ${this.bossesKilled}/4`;
+                    this.currentXpAccumulated = 0;
+                    this.shake(30);
+
+                    if (this.bossesKilled >= 4) {
+                        this.victory();
+                    } else {
+                        // Aumenta dificuldade
+                        this.difficulty += 2;
+                        this.bossSpawnThreshold *= 1.5;
+                    }
+                }
+            },
+
+            spawnBoss() {
+                this.bossActive = true;
+                this.currentXpAccumulated = 0; // Reset progress
+                
+                let type = 'hydra';
+                if (this.bossesKilled === 1) type = 'medusa';
+                if (this.bossesKilled === 2) type = 'hercules';
+                if (this.bossesKilled === 3) type = 'ares'; // Final Boss
+
+                // Spawn perto do player
+                const bx = this.player.x + 300;
+                const by = this.player.y;
+                
+                Enemies.spawn(type, bx, by);
+                
+                // UI
+                document.getElementById('boss-hud').style.display = 'block';
+                document.getElementById('boss-name').innerText = Enemies.types[type].name;
+            },
+
+            update() {
+                this.player.update();
+                Enemies.update();
+                Particles.update();
+
+                // Camera Follow
+                let targetX = this.player.x - WIDTH/2;
+                let targetY = this.player.y - HEIGHT/2;
+                this.camera.x += (targetX - this.camera.x) * 0.1;
+                this.camera.y += (targetY - this.camera.y) * 0.1;
+                
+                // Shake decay
+                if (this.camera.shake > 0) {
+                    this.camera.x += (Math.random()-0.5)*this.camera.shake;
+                    this.camera.y += (Math.random()-0.5)*this.camera.shake;
+                    this.camera.shake *= 0.9;
+                    if(this.camera.shake < 0.5) this.camera.shake = 0;
+                }
+
+                // Update World Mouse for Aiming
+                Input.updateWorldMouse(this.camera.x, this.camera.y);
+
+                // UI Timer
+                let elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                let m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                let s = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `${m}:${s}`;
+
+                // Boss HP Bar Update
+                if (this.bossActive) {
+                    const boss = Enemies.list.find(e => e.type.boss);
+                    if (boss) {
+                        const pct = (boss.hp / boss.maxHp) * 100;
+                        document.getElementById('boss-hp').style.width = pct + '%';
+                    }
+                }
+
+                // Combo Decay
+                if (this.comboTimer > 0) this.comboTimer--;
+                else {
+                    this.combo = 0;
+                    document.getElementById('combo-text').style.opacity = 0;
+                }
+            },
+
+            draw() {
+                // Limpa
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+                // Desenha Mapa
+                World.draw(ctx, this.camera.x, this.camera.y);
+
+                ctx.save();
+                ctx.translate(-this.camera.x, -this.camera.y);
+                
+                // Desenha Entidades
+                Particles.draw(ctx);
+                Enemies.draw(ctx);
+                this.player.draw(ctx);
+                Visuals.updateAndDraw(ctx);
+
+                ctx.restore();
+            },
+
+            loop() {
+                if (gameState !== 'PLAYING') return;
+                Game.update();
+                Game.draw();
+                requestAnimationFrame(() => Game.loop());
+            },
+
+            over() {
+                gameState = 'GAMEOVER';
+                document.getElementById('game-over-screen').classList.remove('hidden');
+                document.getElementById('final-score').innerText = `Você caiu perante o Olimpo.`;
+            },
+
+            victory() {
+                gameState = 'VICTORY';
+                document.getElementById('end-screen').classList.remove('hidden');
+                let elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                let m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                let s = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('end-time').innerText = `Tempo Total: ${m}:${s}`;
+            }
+        };
+
+    </script>
+</body>
+</html>
